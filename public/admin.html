@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CertifyPro — Admin</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen" class="auth-screen">
+  <div class="auth-box">
+    <div class="logo">🎓</div>
+    <h1>CertifyPro</h1>
+    <p>Enterprise Certification Platform</p>
+    <div class="form-group" style="text-align:left;">
+      <label>Admin Password</label>
+      <input type="password" id="authInput" class="form-control" placeholder="Enter password" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign In</button>
+    <p style="margin-top:12px;font-size:12px;color:#94a3b8;">Default: admin123 (change in .env)</p>
+  </div>
+</div>
+
+<!-- MAIN APP (hidden until authed) -->
+<div id="mainApp" class="hidden">
+  <nav class="topbar">
+    <div class="topbar-brand">
+      <div class="logo-icon">🎓</div>
+      CertifyPro
+    </div>
+    <div class="topbar-nav">
+      <a href="/" class="active">Admin</a>
+      <a href="/review">Review</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- EXAM LIST VIEW -->
+    <div id="examListView">
+      <div class="page-header flex items-center justify-between">
+        <div>
+          <h1>Exams</h1>
+          <p>Create and manage your certification exams</p>
+        </div>
+        <button class="btn btn-primary" onclick="openCreateExam()">+ New Exam</button>
+      </div>
+      <div id="examGrid" class="exam-grid">
+        <div class="empty-state" style="grid-column:1/-1">
+          <div class="empty-icon">📋</div>
+          <h3>No exams yet</h3>
+          <p>Click "New Exam" to create your first certification</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXAM DETAIL VIEW -->
+    <div id="examDetailView" class="hidden">
+      <div class="page-header flex items-center justify-between">
+        <div>
+          <button class="btn btn-secondary btn-sm" onclick="showExamList()" style="margin-bottom:10px;">← Back</button>
+          <h1 id="detailExamTitle"></h1>
+          <p id="detailExamDesc"></p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-secondary btn-sm" onclick="openExportModal()">Export CSV</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCurrentExam()">Delete Exam</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('questions')">Questions</button>
+        <button class="tab-btn" onclick="switchTab('links')">Share Links</button>
+        <button class="tab-btn" onclick="switchTab('submissions')">Submissions</button>
+      </div>
+
+      <!-- Questions Tab -->
+      <div id="tab-questions" class="tab-pane active">
+        <div class="card">
+          <div class="card-header">
+            <h2>Questions (<span id="qCount">0</span>)</h2>
+            <button class="btn btn-primary btn-sm" onclick="openAddQuestion()">+ Add Question</button>
+          </div>
+          <div class="card-body">
+            <div id="questionList" class="question-list">
+              <div class="empty-state">
+                <div class="empty-icon">❓</div>
+                <h3>No questions yet</h3>
+                <p>Add MCQ or subjective questions</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Links Tab -->
+      <div id="tab-links" class="tab-pane">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <h2>Generate Individual Links</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Participant Name</label>
+                <input type="text" id="linkName" class="form-control" placeholder="John Doe" />
+              </div>
+              <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="linkEmail" class="form-control" placeholder="john@example.com" />
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="generateLink()">Generate Link</button>
+            <span style="margin:0 10px;color:var(--muted);font-size:13px;">or</span>
+            <button class="btn btn-secondary btn-sm" onclick="openBulkImport()">Bulk Import CSV</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Generated Links</h2>
+            <button class="btn btn-secondary btn-sm" onclick="copyAllLinks()">Copy All</button>
+          </div>
+          <div class="card-body">
+            <div id="linksList">
+              <div class="empty-state">
+                <div class="empty-icon">🔗</div>
+                <h3>No links yet</h3>
+                <p>Generate individual links for participants</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submissions Tab -->
+      <div id="tab-submissions" class="tab-pane">
+        <div class="card">
+          <div class="card-header">
+            <h2>Submissions</h2>
+            <div class="flex gap-2">
+              <select id="submissionFilter" class="form-control" style="width:auto;font-size:12px;padding:5px 10px;" onchange="loadSubmissions()">
+                <option value="">All</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="graded">Graded</option>
+              </select>
+            </div>
+          </div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Participant</th>
+                    <th>Email</th>
+                    <th>Submitted</th>
+                    <th>Status</th>
+                    <th>Score</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="submissionsTable">
+                  <tr><td colspan="6" class="text-center text-muted" style="padding:32px">No submissions yet</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Create Exam Modal -->
+<div class="modal-overlay" id="createExamModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Create New Exam</h3>
+      <button class="close-btn" onclick="closeModal('createExamModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Exam Title *</label>
+        <input type="text" id="newExamTitle" class="form-control" placeholder="e.g. AWS Solutions Architect" />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="newExamDesc" class="form-control" placeholder="Briefly describe the exam..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Time Limit (minutes)</label>
+        <input type="number" id="newExamTime" class="form-control" placeholder="0 = no limit" min="0" value="0" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('createExamModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="createExam()">Create Exam</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Question Modal -->
+<div class="modal-overlay" id="addQuestionModal">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h3 id="questionModalTitle">Add Question</h3>
+      <button class="close-btn" onclick="closeModal('addQuestionModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Question Type</label>
+        <select id="qType" class="form-control" onchange="toggleQType()">
+          <option value="mcq">Multiple Choice (MCQ) — auto-graded, 10 pts</option>
+          <option value="subjective">Subjective — manually graded</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Question Text *</label>
+        <textarea id="qText" class="form-control" placeholder="Enter your question..." rows="3"></textarea>
+      </div>
+
+      <!-- MCQ Options -->
+      <div id="mcqSection">
+        <div class="form-group">
+          <label>Answer Options <span style="font-weight:400;color:var(--muted)">(select correct answer)</span></label>
+          <div class="options-list" id="optionsList"></div>
+          <button class="btn btn-secondary btn-sm" onclick="addOption()">+ Add Option</button>
+        </div>
+      </div>
+
+      <!-- Subjective -->
+      <div id="subjectiveSection" class="hidden">
+        <div class="form-group">
+          <label>Max Points</label>
+          <input type="number" id="qMaxPoints" class="form-control" value="10" min="1" max="100" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addQuestionModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveQuestionBtn" onclick="saveQuestion()">Add Question</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Import Modal -->
+<div class="modal-overlay" id="bulkImportModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Bulk Import Participants</h3>
+      <button class="close-btn" onclick="closeModal('bulkImportModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+        Paste CSV data below. One participant per line: <code>Name, Email</code>
+      </p>
+      <textarea id="bulkCsv" class="form-control" rows="8" placeholder="John Doe, john@example.com&#10;Jane Smith, jane@example.com"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('bulkImportModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="bulkImport()">Import & Generate Links</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+let adminPwd = localStorage.getItem('adminPwd') || '';
+let currentExam = null;
+let editingQuestionId = null;
+
+// ===== AUTH =====
+function doLogin() {
+  const pwd = document.getElementById('authInput').value;
+  adminPwd = pwd;
+  verifyAndLoad();
+}
+
+document.getElementById('authInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+async function verifyAndLoad() {
+  try {
+    const res = await apiFetch('/api/exams');
+    if (!res.ok) { showToast('Wrong password', 'error'); return; }
+    localStorage.setItem('adminPwd', adminPwd);
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('mainApp').classList.remove('hidden');
+    loadExams();
+  } catch {
+    showToast('Connection error', 'error');
+  }
+}
+
+// Auto-login if password saved
+if (adminPwd) verifyAndLoad();
+
+// ===== API =====
+async function apiFetch(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-password': adminPwd,
+      ...(options.headers || {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+}
+
+// ===== EXAMS =====
+let exams = [];
+
+async function loadExams() {
+  const res = await apiFetch('/api/exams');
+  exams = await res.json();
+  renderExamGrid();
+}
+
+function renderExamGrid() {
+  const grid = document.getElementById('examGrid');
+  if (exams.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📋</div><h3>No exams yet</h3><p>Click "New Exam" to create your first certification</p></div>`;
+    return;
+  }
+  grid.innerHTML = exams.map(exam => `
+    <div class="exam-item-card" onclick="openExam('${exam.id}')">
+      <h3>${escHtml(exam.title)}</h3>
+      <p>${escHtml(exam.description || 'No description')}</p>
+      <div class="exam-item-meta">
+        <span class="badge badge-info">${exam.questions.length} questions</span>
+        ${exam.timeLimit ? `<span class="badge badge-gray">${exam.timeLimit} min</span>` : '<span class="badge badge-gray">No time limit</span>'}
+      </div>
+    </div>
+  `).join('');
+}
+
+function openCreateExam() {
+  document.getElementById('newExamTitle').value = '';
+  document.getElementById('newExamDesc').value = '';
+  document.getElementById('newExamTime').value = '0';
+  openModal('createExamModal');
+}
+
+async function createExam() {
+  const title = document.getElementById('newExamTitle').value.trim();
+  if (!title) { showToast('Title is required', 'error'); return; }
+  const res = await apiFetch('/api/exams', {
+    method: 'POST',
+    body: {
+      title,
+      description: document.getElementById('newExamDesc').value,
+      timeLimit: parseInt(document.getElementById('newExamTime').value) || 0,
+    },
+  });
+  const exam = await res.json();
+  exams.push(exam);
+  renderExamGrid();
+  closeModal('createExamModal');
+  openExam(exam.id);
+  showToast('Exam created!', 'success');
+}
+
+async function openExam(examId) {
+  const res = await apiFetch(`/api/exams/${examId}`);
+  currentExam = await res.json();
+  document.getElementById('examListView').classList.add('hidden');
+  document.getElementById('examDetailView').classList.remove('hidden');
+  document.getElementById('detailExamTitle').textContent = currentExam.title;
+  document.getElementById('detailExamDesc').textContent = currentExam.description || '';
+  switchTab('questions');
+  renderQuestions();
+}
+
+function showExamList() {
+  currentExam = null;
+  document.getElementById('examDetailView').classList.add('hidden');
+  document.getElementById('examListView').classList.remove('hidden');
+  loadExams();
+}
+
+async function deleteCurrentExam() {
+  if (!confirm(`Delete "${currentExam.title}"? This cannot be undone.`)) return;
+  await apiFetch(`/api/exams/${currentExam.id}`, { method: 'DELETE' });
+  showToast('Exam deleted');
+  showExamList();
+}
+
+// ===== TABS =====
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const tabs = ['questions', 'links', 'submissions'];
+    b.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  if (tab === 'links') loadLinks();
+  if (tab === 'submissions') loadSubmissions();
+}
+
+// ===== QUESTIONS =====
+function renderQuestions() {
+  const list = document.getElementById('questionList');
+  document.getElementById('qCount').textContent = currentExam.questions.length;
+  if (currentExam.questions.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">❓</div><h3>No questions yet</h3><p>Add MCQ or subjective questions</p></div>`;
+    return;
+  }
+  list.innerHTML = currentExam.questions.map((q, i) => `
+    <div class="question-card">
+      <div class="q-number">${i + 1}</div>
+      <div class="q-content">
+        <div class="q-text">${escHtml(q.text)}</div>
+        <div class="q-meta">
+          <span class="badge ${q.type === 'mcq' ? 'badge-info' : 'badge-purple'}">${q.type === 'mcq' ? 'MCQ' : 'Subjective'}</span>
+          <span class="badge badge-gray">${q.maxPoints} pts</span>
+          ${q.type === 'mcq' ? `<span style="font-size:12px;color:var(--muted)">✓ ${escHtml(q.options[q.correctOption])}</span>` : ''}
+        </div>
+      </div>
+      <div class="q-actions">
+        <button class="btn btn-ghost btn-sm" onclick="editQuestion('${q.id}')" title="Edit">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="deleteQuestion('${q.id}')" title="Delete">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+let editOptions = [];
+let editCorrect = 0;
+
+function openAddQuestion() {
+  editingQuestionId = null;
+  document.getElementById('questionModalTitle').textContent = 'Add Question';
+  document.getElementById('saveQuestionBtn').textContent = 'Add Question';
+  document.getElementById('qType').value = 'mcq';
+  document.getElementById('qText').value = '';
+  document.getElementById('qMaxPoints').value = '10';
+  editOptions = ['', '', '', ''];
+  editCorrect = 0;
+  toggleQType();
+  renderOptions();
+  openModal('addQuestionModal');
+}
+
+function editQuestion(qid) {
+  const q = currentExam.questions.find(q => q.id === qid);
+  if (!q) return;
+  editingQuestionId = qid;
+  document.getElementById('questionModalTitle').textContent = 'Edit Question';
+  document.getElementById('saveQuestionBtn').textContent = 'Save Changes';
+  document.getElementById('qType').value = q.type;
+  document.getElementById('qText').value = q.text;
+  document.getElementById('qMaxPoints').value = q.maxPoints || 10;
+  editOptions = q.type === 'mcq' ? [...q.options] : ['', '', '', ''];
+  editCorrect = q.type === 'mcq' ? q.correctOption : 0;
+  toggleQType();
+  renderOptions();
+  openModal('addQuestionModal');
+}
+
+function toggleQType() {
+  const type = document.getElementById('qType').value;
+  document.getElementById('mcqSection').style.display = type === 'mcq' ? '' : 'none';
+  document.getElementById('subjectiveSection').style.display = type === 'subjective' ? '' : 'none';
+}
+
+function renderOptions() {
+  const list = document.getElementById('optionsList');
+  list.innerHTML = editOptions.map((opt, i) => `
+    <div class="option-item">
+      <input type="radio" name="correctOpt" ${i === editCorrect ? 'checked' : ''} onchange="editCorrect=${i}" title="Mark as correct" />
+      <input type="text" class="form-control" value="${escHtml(opt)}" placeholder="Option ${String.fromCharCode(65+i)}" oninput="editOptions[${i}]=this.value" />
+      ${editOptions.length > 2 ? `<button class="btn btn-ghost" onclick="removeOption(${i})" title="Remove">×</button>` : ''}
+    </div>
+  `).join('');
+}
+
+function addOption() {
+  editOptions.push('');
+  renderOptions();
+}
+
+function removeOption(i) {
+  editOptions.splice(i, 1);
+  if (editCorrect >= editOptions.length) editCorrect = editOptions.length - 1;
+  renderOptions();
+}
+
+async function saveQuestion() {
+  const type = document.getElementById('qType').value;
+  const text = document.getElementById('qText').value.trim();
+  if (!text) { showToast('Question text required', 'error'); return; }
+
+  if (type === 'mcq') {
+    const filled = editOptions.filter(o => o.trim());
+    if (filled.length < 2) { showToast('At least 2 options required', 'error'); return; }
+  }
+
+  const body = {
+    type,
+    text,
+    options: type === 'mcq' ? editOptions : undefined,
+    correctOption: type === 'mcq' ? editCorrect : undefined,
+    maxPoints: type === 'subjective' ? (parseInt(document.getElementById('qMaxPoints').value) || 10) : 10,
+  };
+
+  let res;
+  if (editingQuestionId) {
+    res = await apiFetch(`/api/exams/${currentExam.id}/questions/${editingQuestionId}`, { method: 'PUT', body });
+  } else {
+    res = await apiFetch(`/api/exams/${currentExam.id}/questions`, { method: 'POST', body });
+  }
+
+  if (!res.ok) { showToast('Failed to save', 'error'); return; }
+
+  // Reload exam
+  const examRes = await apiFetch(`/api/exams/${currentExam.id}`);
+  currentExam = await examRes.json();
+  renderQuestions();
+  closeModal('addQuestionModal');
+  showToast(editingQuestionId ? 'Question updated!' : 'Question added!', 'success');
+}
+
+async function deleteQuestion(qid) {
+  if (!confirm('Delete this question?')) return;
+  await apiFetch(`/api/exams/${currentExam.id}/questions/${qid}`, { method: 'DELETE' });
+  const examRes = await apiFetch(`/api/exams/${currentExam.id}`);
+  currentExam = await examRes.json();
+  renderQuestions();
+  showToast('Question deleted');
+}
+
+// ===== LINKS =====
+let examLinks = [];
+
+async function loadLinks() {
+  const res = await apiFetch(`/api/links?examId=${currentExam.id}`);
+  examLinks = await res.json();
+  renderLinks();
+}
+
+function renderLinks() {
+  const container = document.getElementById('linksList');
+  if (examLinks.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔗</div><h3>No links yet</h3><p>Generate individual links for participants</p></div>`;
+    return;
+  }
+  container.innerHTML = examLinks.map(l => `
+    <div class="link-item">
+      <div>
+        <div class="link-name">${escHtml(l.participantName)}</div>
+        <div class="link-email">${escHtml(l.participantEmail)}</div>
+      </div>
+      <span class="badge ${l.used ? 'badge-success' : 'badge-warning'}">${l.used ? 'Used' : 'Pending'}</span>
+      <div class="link-url-box">
+        <input type="text" value="${l.url}" readonly id="url-${l.token}" />
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="copyLink('${l.token}')">Copy</button>
+      <button class="btn btn-ghost btn-sm" onclick="deleteLink('${l.token}')" title="Delete">🗑️</button>
+    </div>
+  `).join('');
+}
+
+async function generateLink() {
+  const name = document.getElementById('linkName').value.trim();
+  const email = document.getElementById('linkEmail').value.trim();
+  if (!name || !email) { showToast('Name and email required', 'error'); return; }
+  if (!currentExam.questions.length) { showToast('Add questions first', 'error'); return; }
+
+  const res = await apiFetch('/api/links', {
+    method: 'POST',
+    body: { examId: currentExam.id, participantName: name, participantEmail: email },
+  });
+  const link = await res.json();
+  examLinks.push(link);
+  renderLinks();
+  document.getElementById('linkName').value = '';
+  document.getElementById('linkEmail').value = '';
+  showToast(`Link generated for ${name}!`, 'success');
+}
+
+function copyLink(token) {
+  const input = document.getElementById(`url-${token}`);
+  input.select();
+  navigator.clipboard.writeText(input.value).then(() => showToast('Link copied!', 'success'));
+}
+
+function copyAllLinks() {
+  const text = examLinks.map(l => `${l.participantName}\t${l.participantEmail}\t${l.url}`).join('\n');
+  navigator.clipboard.writeText(text).then(() => showToast('All links copied!', 'success'));
+}
+
+async function deleteLink(token) {
+  if (!confirm('Delete this link?')) return;
+  await apiFetch(`/api/links/${token}`, { method: 'DELETE' });
+  examLinks = examLinks.filter(l => l.token !== token);
+  renderLinks();
+}
+
+function openBulkImport() {
+  document.getElementById('bulkCsv').value = '';
+  openModal('bulkImportModal');
+}
+
+async function bulkImport() {
+  const csv = document.getElementById('bulkCsv').value.trim();
+  if (!csv) return;
+  const participants = csv.split('\n').map(line => {
+    const parts = line.split(',').map(s => s.trim());
+    return { name: parts[0], email: parts[1] };
+  }).filter(p => p.name && p.email);
+  if (!participants.length) { showToast('No valid rows found', 'error'); return; }
+
+  const res = await apiFetch('/api/links/bulk', {
+    method: 'POST',
+    body: { examId: currentExam.id, participants },
+  });
+  const newLinks = await res.json();
+  examLinks = [...examLinks, ...newLinks];
+  renderLinks();
+  closeModal('bulkImportModal');
+  showToast(`Generated ${newLinks.length} links!`, 'success');
+}
+
+// ===== SUBMISSIONS =====
+async function loadSubmissions() {
+  const filter = document.getElementById('submissionFilter').value;
+  const url = `/api/submissions?examId=${currentExam.id}${filter ? `&status=${filter}` : ''}`;
+  const res = await apiFetch(url);
+  const subs = await res.json();
+  renderSubmissions(subs);
+}
+
+function renderSubmissions(subs) {
+  const tbody = document.getElementById('submissionsTable');
+  if (subs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted" style="padding:32px">No submissions yet</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = subs.map(s => `
+    <tr>
+      <td><strong>${escHtml(s.participantName)}</strong></td>
+      <td class="text-muted">${escHtml(s.participantEmail)}</td>
+      <td class="text-muted">${formatDate(s.submittedAt)}</td>
+      <td>${statusBadge(s.status)}</td>
+      <td>
+        ${s.totalPoints != null
+          ? `<strong>${s.totalPoints}</strong> / ${s.maxPoints} <span class="text-muted">(${((s.totalPoints/s.maxPoints)*100).toFixed(0)}%)</span>`
+          : `<span class="text-muted">${s.autoPoints} auto + pending review</span>`
+        }
+      </td>
+      <td>
+        <a href="/review?id=${s.id}" class="btn btn-sm ${s.status === 'pending_review' ? 'btn-primary' : 'btn-secondary'}">
+          ${s.status === 'pending_review' ? 'Grade' : 'View'}
+        </a>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openExportModal() {
+  window.open(`/api/export/${currentExam.id}?pwd=${adminPwd}`, '_blank');
+}
+
+// ===== UTILS =====
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+  toast.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function statusBadge(status) {
+  const map = {
+    graded: '<span class="badge badge-success">Graded</span>',
+    pending_review: '<span class="badge badge-warning">Pending Review</span>',
+  };
+  return map[status] || `<span class="badge badge-gray">${status}</span>`;
+}
+</script>
+</body>
+</html>

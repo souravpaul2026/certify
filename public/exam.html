@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CertifyPro — Exam</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<div id="loadingScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);">
+  <div style="text-align:center;">
+    <div style="font-size:48px;margin-bottom:16px;">🎓</div>
+    <p style="color:var(--muted);font-size:15px;">Loading your exam...</p>
+  </div>
+</div>
+
+<div id="errorScreen" class="hidden" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);">
+  <div style="text-align:center;max-width:400px;padding:24px;">
+    <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+    <h2 id="errorTitle" style="color:var(--primary);margin-bottom:8px;">Something went wrong</h2>
+    <p id="errorMsg" style="color:var(--muted);font-size:14px;"></p>
+  </div>
+</div>
+
+<div id="alreadyDoneScreen" class="hidden" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);">
+  <div style="text-align:center;max-width:420px;padding:24px;">
+    <div style="font-size:56px;margin-bottom:16px;">✅</div>
+    <h2 style="color:var(--primary);margin-bottom:8px;">Already Submitted</h2>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:20px;">You've already completed this exam. Your responses are being reviewed.</p>
+  </div>
+</div>
+
+<!-- START SCREEN -->
+<div id="startScreen" class="hidden" style="min-height:100vh;background:linear-gradient(135deg,var(--primary) 0%,#2d3494 100%);display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:white;border-radius:16px;padding:40px;max-width:500px;width:100%;box-shadow:var(--shadow-lg);text-align:center;">
+    <div style="width:64px;height:64px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 20px;">🎓</div>
+    <h1 id="startExamTitle" style="font-size:22px;font-weight:800;color:var(--primary);margin-bottom:8px;"></h1>
+    <p id="startExamDesc" style="color:var(--muted);font-size:14px;margin-bottom:24px;line-height:1.6;"></p>
+
+    <div style="background:var(--bg);border-radius:10px;padding:20px;margin-bottom:24px;text-align:left;">
+      <h3 style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Exam Details</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <div style="font-size:11px;color:var(--muted);">Questions</div>
+          <div id="startQCount" style="font-size:18px;font-weight:700;color:var(--text);"></div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);">Time Limit</div>
+          <div id="startTime" style="font-size:18px;font-weight:700;color:var(--text);"></div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);">Participant</div>
+          <div id="startName" style="font-size:15px;font-weight:600;color:var(--text);"></div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);">Total Points</div>
+          <div id="startMaxPts" style="font-size:18px;font-weight:700;color:var(--text);"></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:#fef3c7;border-radius:8px;padding:12px 16px;margin-bottom:24px;text-align:left;font-size:13px;color:#92400e;">
+      <strong>⚠️ Important:</strong> Once started, you cannot pause. Submit before the time runs out.
+    </div>
+
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:15px;" onclick="startExam()">
+      Start Exam →
+    </button>
+  </div>
+</div>
+
+<!-- EXAM SCREEN -->
+<div id="examScreen" class="hidden exam-layout">
+  <div class="exam-header">
+    <div>
+      <div class="exam-title" id="examHeaderTitle"></div>
+      <div class="participant-info" id="examHeaderParticipant"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <span id="progressText" style="font-size:13px;color:var(--muted);"></span>
+      <div id="timerBox" class="timer-box hidden"></div>
+    </div>
+  </div>
+  <div class="exam-progress-bar">
+    <div class="exam-progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+
+  <div class="exam-body">
+    <div id="questionCards"></div>
+
+    <div class="exam-submit-area">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Review your answers before submitting.</p>
+      <button class="btn btn-success" onclick="confirmSubmit()" style="padding:13px 48px;font-size:15px;">
+        Submit Exam
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- SUBMITTED SCREEN -->
+<div id="submittedScreen" class="hidden" style="min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:white;border-radius:16px;padding:40px;max-width:480px;width:100%;box-shadow:var(--shadow-lg);text-align:center;">
+    <div style="font-size:64px;margin-bottom:16px;">🎉</div>
+    <h1 style="color:var(--primary);font-size:24px;font-weight:800;margin-bottom:8px;">Exam Submitted!</h1>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:28px;">Your responses have been recorded.</p>
+    <div id="submittedDetails" style="background:var(--bg);border-radius:10px;padding:20px;margin-bottom:24px;text-align:left;"></div>
+    <p style="font-size:13px;color:var(--muted);">You can close this window.</p>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h3>Submit Exam?</h3>
+      <button class="close-btn" onclick="closeModal('confirmModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:14px;color:var(--text);" id="confirmMsg"></p>
+      <div id="unansweredWarn" class="hidden" style="background:#fef3c7;border-radius:8px;padding:12px;margin-top:14px;font-size:13px;color:#92400e;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Go Back</button>
+      <button class="btn btn-success" onclick="submitExam()">Yes, Submit</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const token = location.pathname.split('/exam/')[1];
+let examData = null;
+let participant = null;
+let answers = {}; // questionId -> answer
+let timerInterval = null;
+let secondsLeft = 0;
+let examStarted = false;
+
+// ===== LOAD =====
+async function loadExam() {
+  try {
+    const res = await fetch(`/api/take/${token}`);
+    if (res.status === 409) {
+      hide('loadingScreen');
+      show('alreadyDoneScreen');
+      return;
+    }
+    if (!res.ok) {
+      const data = await res.json();
+      showError('Invalid Link', data.error || 'This exam link is invalid or expired.');
+      return;
+    }
+    const data = await res.json();
+    examData = data.exam;
+    participant = data.participant;
+    setupStartScreen();
+  } catch (e) {
+    showError('Connection Error', 'Could not connect to the server. Please try again.');
+  }
+}
+
+function setupStartScreen() {
+  hide('loadingScreen');
+  document.getElementById('startExamTitle').textContent = examData.title;
+  document.getElementById('startExamDesc').textContent = examData.description || '';
+  document.getElementById('startQCount').textContent = examData.questions.length;
+  document.getElementById('startTime').textContent = examData.timeLimit ? `${examData.timeLimit} min` : 'No limit';
+  document.getElementById('startName').textContent = participant.name;
+  document.getElementById('startMaxPts').textContent = examData.questions.reduce((s, q) => s + q.maxPoints, 0);
+  show('startScreen');
+}
+
+function startExam() {
+  hide('startScreen');
+  show('examScreen');
+  examStarted = true;
+
+  document.getElementById('examHeaderTitle').textContent = examData.title;
+  document.getElementById('examHeaderParticipant').textContent = `${participant.name} — ${participant.email}`;
+
+  renderQuestions();
+  updateProgress();
+
+  if (examData.timeLimit > 0) {
+    secondsLeft = examData.timeLimit * 60;
+    document.getElementById('timerBox').classList.remove('hidden');
+    updateTimer();
+    timerInterval = setInterval(() => {
+      secondsLeft--;
+      updateTimer();
+      if (secondsLeft <= 0) {
+        clearInterval(timerInterval);
+        showToast('Time is up! Submitting...', 'error');
+        submitExam();
+      }
+    }, 1000);
+  }
+}
+
+function renderQuestions() {
+  const container = document.getElementById('questionCards');
+  container.innerHTML = examData.questions.map((q, i) => {
+    return `
+      <div class="exam-question-card" id="qcard-${q.id}">
+        <div class="q-header">
+          <div class="q-num-badge">${i + 1}</div>
+          <div class="q-text">${escHtml(q.text)}</div>
+          <div class="q-points">${q.maxPoints} pts</div>
+        </div>
+        ${q.type === 'mcq' ? renderMCQ(q) : renderSubjective(q)}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderMCQ(q) {
+  return `
+    <div class="mcq-options">
+      ${q.options.map((opt, i) => `
+        <label class="mcq-option" id="opt-${q.id}-${i}" onclick="selectMCQ('${q.id}', ${i})">
+          <input type="radio" name="q-${q.id}" value="${i}" />
+          <span class="option-label">${String.fromCharCode(65+i)}. ${escHtml(opt)}</span>
+        </label>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderSubjective(q) {
+  return `
+    <textarea
+      class="subjective-area"
+      placeholder="Type your answer here..."
+      oninput="saveSubjective('${q.id}', this.value)"
+    ></textarea>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px;">This answer will be manually reviewed and graded.</div>
+  `;
+}
+
+function selectMCQ(qid, optionIndex) {
+  answers[qid] = { type: 'mcq', selectedOption: optionIndex };
+  // Update UI
+  const q = examData.questions.find(q => q.id === qid);
+  q.options.forEach((_, i) => {
+    const el = document.getElementById(`opt-${qid}-${i}`);
+    if (el) el.classList.toggle('selected', i === optionIndex);
+    const radio = el?.querySelector('input[type="radio"]');
+    if (radio) radio.checked = i === optionIndex;
+  });
+  updateProgress();
+}
+
+function saveSubjective(qid, text) {
+  answers[qid] = { type: 'subjective', text };
+  updateProgress();
+}
+
+function updateProgress() {
+  const total = examData.questions.length;
+  const answered = Object.keys(answers).length;
+  const pct = total > 0 ? (answered / total) * 100 : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `${answered} / ${total} answered`;
+}
+
+function updateTimer() {
+  const box = document.getElementById('timerBox');
+  const mins = Math.floor(secondsLeft / 60).toString().padStart(2, '0');
+  const secs = (secondsLeft % 60).toString().padStart(2, '0');
+  box.textContent = `${mins}:${secs}`;
+  box.className = 'timer-box';
+  if (secondsLeft <= 60) box.classList.add('danger');
+  else if (secondsLeft <= 300) box.classList.add('warning');
+}
+
+function confirmSubmit() {
+  const total = examData.questions.length;
+  const answered = Object.keys(answers).length;
+  const unanswered = total - answered;
+
+  document.getElementById('confirmMsg').textContent = `You're about to submit your exam. This action cannot be undone.`;
+
+  const warnEl = document.getElementById('unansweredWarn');
+  if (unanswered > 0) {
+    warnEl.classList.remove('hidden');
+    warnEl.textContent = `⚠️ You have ${unanswered} unanswered question${unanswered > 1 ? 's' : ''}. They will receive 0 points.`;
+  } else {
+    warnEl.classList.add('hidden');
+  }
+
+  openModal('confirmModal');
+}
+
+async function submitExam() {
+  closeModal('confirmModal');
+  if (timerInterval) clearInterval(timerInterval);
+
+  const answerArray = examData.questions.map(q => {
+    const ans = answers[q.id];
+    if (!ans) return { questionId: q.id, ...(q.type === 'mcq' ? { selectedOption: null } : { text: '' }) };
+    return { questionId: q.id, ...ans };
+  });
+
+  try {
+    const res = await fetch(`/api/take/${token}/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers: answerArray }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || 'Submission failed', 'error');
+      return;
+    }
+
+    const result = await res.json();
+    hide('examScreen');
+    show('submittedScreen');
+
+    const details = document.getElementById('submittedDetails');
+    const hasPending = result.status === 'pending_review';
+    details.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Auto-graded Score</div>
+          <div style="font-size:20px;font-weight:800;color:var(--primary);">${result.autoPoints} / <span style="color:var(--muted);font-size:15px;">${result.maxPoints} pts</span></div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Status</div>
+          <div style="font-size:14px;font-weight:600;color:${hasPending ? 'var(--warning)' : 'var(--success)'};">${hasPending ? 'Pending Review' : 'Graded'}</div>
+        </div>
+      </div>
+      ${hasPending ? '<p style="margin-top:12px;font-size:13px;color:var(--muted);">Your subjective answers are being reviewed. Final score will be updated soon.</p>' : ''}
+    `;
+  } catch (e) {
+    showToast('Network error. Please try again.', 'error');
+  }
+}
+
+// ===== UTILS =====
+function show(id) { document.getElementById(id).classList.remove('hidden'); document.getElementById(id).style.display = ''; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+function showError(title, msg) {
+  hide('loadingScreen');
+  document.getElementById('errorTitle').textContent = title;
+  document.getElementById('errorMsg').textContent = msg;
+  show('errorScreen');
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+loadExam();
+</script>
+</body>
+</html>

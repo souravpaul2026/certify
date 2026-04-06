@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CertifyPro — Result</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body style="background:var(--bg);">
+
+<div id="loadingScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;"><div style="font-size:48px;">🎓</div><p style="color:var(--muted);">Loading result...</p></div>
+</div>
+
+<div id="resultScreen" class="hidden">
+  <div class="result-hero">
+    <p id="heroExamTitle" style="font-size:13px;opacity:0.7;margin-bottom:8px;"></p>
+    <h1 id="heroName"></h1>
+    <p id="heroStatus"></p>
+
+    <div class="score-ring-wrap" id="scoreRingWrap">
+      <div class="score-ring">
+        <svg viewBox="0 0 140 140" width="140" height="140">
+          <circle class="ring-bg" cx="70" cy="70" r="60" />
+          <circle class="ring-fill" id="ringFill" cx="70" cy="70" r="60"
+            stroke-dasharray="377"
+            stroke-dashoffset="377"
+          />
+        </svg>
+        <div class="score-text">
+          <div class="pct" id="scorePct">—</div>
+          <div class="label">Score</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:inline-flex;gap:32px;background:rgba(255,255,255,0.1);border-radius:12px;padding:14px 28px;margin-top:4px;">
+      <div style="text-align:center;">
+        <div style="font-size:22px;font-weight:800;" id="heroPoints">—</div>
+        <div style="font-size:11px;opacity:0.7;">Points Earned</div>
+      </div>
+      <div style="width:1px;background:rgba(255,255,255,0.2);"></div>
+      <div style="text-align:center;">
+        <div style="font-size:22px;font-weight:800;" id="heroMax">—</div>
+        <div style="font-size:11px;opacity:0.7;">Total Points</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Answer Review -->
+  <div style="max-width:780px;margin:32px auto;padding:0 24px 48px;">
+    <h2 style="font-size:16px;font-weight:700;color:var(--primary);margin-bottom:16px;">Answer Review</h2>
+    <div id="answerReview"></div>
+  </div>
+</div>
+
+<script>
+const subId = location.pathname.split('/result/')[1];
+
+async function loadResult() {
+  const res = await fetch(`/api/result/${subId}`);
+  if (!res.ok) {
+    document.getElementById('loadingScreen').innerHTML = `<div style="text-align:center;"><div style="font-size:48px;">⚠️</div><h2 style="color:var(--primary)">Result not found</h2></div>`;
+    return;
+  }
+  const { submission: sub, exam } = await res.json();
+
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('resultScreen').classList.remove('hidden');
+
+  document.getElementById('heroExamTitle').textContent = exam.title;
+  document.getElementById('heroName').textContent = sub.participantName;
+
+  const isPending = sub.status === 'pending_review';
+  document.getElementById('heroStatus').textContent = isPending ? 'Result pending review' : 'Congratulations!';
+
+  if (!isPending && sub.totalPoints != null) {
+    const pct = ((sub.totalPoints / sub.maxPoints) * 100).toFixed(1);
+    document.getElementById('scorePct').textContent = pct + '%';
+    document.getElementById('heroPoints').textContent = sub.totalPoints;
+    document.getElementById('heroMax').textContent = sub.maxPoints;
+
+    // Animate ring
+    setTimeout(() => {
+      const circumference = 377;
+      const offset = circumference - (sub.totalPoints / sub.maxPoints) * circumference;
+      document.getElementById('ringFill').style.strokeDashoffset = offset;
+    }, 200);
+  } else {
+    document.getElementById('scorePct').textContent = '?';
+    document.getElementById('heroPoints').textContent = sub.autoPoints + '+';
+    document.getElementById('heroMax').textContent = sub.maxPoints;
+  }
+
+  renderAnswers(sub, exam);
+}
+
+function renderAnswers(sub, exam) {
+  const container = document.getElementById('answerReview');
+  container.innerHTML = exam.questions.map((q, i) => {
+    const ans = sub.answers.find(a => a.questionId === q.id);
+    if (!ans) return '';
+
+    if (q.type === 'mcq') {
+      const selected = ans.selectedOption;
+      const correct = ans.isCorrect;
+      return `
+        <div style="background:white;border-radius:12px;border:1.5px solid var(--border);padding:20px;margin-bottom:14px;box-shadow:var(--shadow);">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="background:var(--primary);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${i+1}</span>
+            <span class="badge ${correct ? 'badge-success' : 'badge-danger'}">${correct ? '✓ Correct' : '✗ Incorrect'}</span>
+            <span style="margin-left:auto;font-weight:700;font-size:14px;color:${correct ? 'var(--success)' : 'var(--danger)'};">${ans.autoPoints} / ${q.maxPoints} pts</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:12px;">${escHtml(q.text)}</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            ${q.options.map((opt, oi) => `
+              <div style="padding:8px 12px;border-radius:6px;font-size:13px;
+                background:${oi === q.correctOption ? '#d1fae5' : oi === selected && !correct ? '#fee2e2' : 'var(--bg)'};
+                color:${oi === q.correctOption ? '#065f46' : oi === selected && !correct ? '#991b1b' : 'var(--text)'};
+                border:1px solid ${oi === q.correctOption ? '#6ee7b7' : oi === selected && !correct ? '#fca5a5' : 'var(--border)'};">
+                ${String.fromCharCode(65+oi)}. ${escHtml(opt)}
+                ${oi === selected ? ' ← Your answer' : ''}
+                ${oi === q.correctOption && !correct ? ' ✓ Correct answer' : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      const pts = ans.manualPoints;
+      return `
+        <div style="background:white;border-radius:12px;border:1.5px solid var(--border);padding:20px;margin-bottom:14px;box-shadow:var(--shadow);">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="background:var(--primary);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${i+1}</span>
+            <span class="badge badge-purple">Subjective</span>
+            ${pts != null ? `<span class="badge badge-success">${pts} / ${q.maxPoints} pts</span>` : '<span class="badge badge-warning">Pending Review</span>'}
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:12px;">${escHtml(q.text)}</div>
+          <div style="background:var(--bg);border-radius:8px;padding:12px;font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap;">${escHtml(ans.text || '(No answer)')}</div>
+          ${ans.feedback ? `<div style="margin-top:10px;background:#ede9fe;border-radius:8px;padding:10px 14px;font-size:13px;color:#5b21b6;"><strong>Feedback:</strong> ${escHtml(ans.feedback)}</div>` : ''}
+        </div>
+      `;
+    }
+  }).join('');
+}
+
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadResult();
+</script>
+</body>
+</html>

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CertifyPro — Review</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen" class="auth-screen">
+  <div class="auth-box">
+    <div class="logo">🎓</div>
+    <h1>CertifyPro</h1>
+    <p>Review & Grade Submissions</p>
+    <div class="form-group" style="text-align:left;">
+      <label>Admin Password</label>
+      <input type="password" id="authInput" class="form-control" placeholder="Enter password" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
+<div id="mainApp" class="hidden">
+  <nav class="topbar">
+    <div class="topbar-brand">
+      <div class="logo-icon">🎓</div>
+      CertifyPro
+    </div>
+    <div class="topbar-nav">
+      <a href="/">Admin</a>
+      <a href="/review" class="active">Review</a>
+    </div>
+  </nav>
+
+  <!-- SUBMISSIONS LIST -->
+  <div id="listView">
+    <div class="container">
+      <div class="page-header flex items-center justify-between">
+        <div>
+          <h1>Review Submissions</h1>
+          <p>Grade subjective answers and finalize scores</p>
+        </div>
+        <div class="flex gap-2">
+          <select id="statusFilter" class="form-control" style="width:auto;" onchange="loadAllSubmissions()">
+            <option value="pending_review">Pending Review</option>
+            <option value="">All</option>
+            <option value="graded">Graded</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Participant</th>
+                  <th>Exam</th>
+                  <th>Submitted</th>
+                  <th>Status</th>
+                  <th>Auto Points</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="submissionsTable">
+                <tr><td colspan="6" class="text-center text-muted" style="padding:32px">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRADING VIEW -->
+  <div id="gradeView" class="hidden">
+    <div class="container">
+      <div class="page-header flex items-center justify-between">
+        <div>
+          <button class="btn btn-secondary btn-sm" onclick="showList()" style="margin-bottom:10px;">← Back to List</button>
+          <h1 id="gradeParticipantName"></h1>
+          <p id="gradeExamTitle" style="color:var(--muted);font-size:14px;"></p>
+        </div>
+        <div id="gradeSaveBtn">
+          <button class="btn btn-primary" onclick="saveGrades()">Save Grades</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 280px;gap:24px;">
+        <div>
+          <div id="answerCards"></div>
+        </div>
+
+        <!-- Score Summary -->
+        <div>
+          <div class="card" style="position:sticky;top:80px;">
+            <div class="card-header"><h2>Score Summary</h2></div>
+            <div class="card-body">
+              <div id="scoreSummary"></div>
+              <div class="divider"></div>
+              <button class="btn btn-success" style="width:100%;justify-content:center;" onclick="saveGrades()">
+                Save & Finalize
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+let adminPwd = localStorage.getItem('adminPwd') || '';
+let currentSub = null;
+let currentExam = null;
+let gradingData = {}; // questionId -> { points, feedback }
+
+// ===== AUTH =====
+function doLogin() {
+  adminPwd = document.getElementById('authInput').value;
+  verifyAndLoad();
+}
+
+document.getElementById('authInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+async function verifyAndLoad() {
+  const res = await apiFetch('/api/submissions');
+  if (!res.ok) { showToast('Wrong password', 'error'); return; }
+  localStorage.setItem('adminPwd', adminPwd);
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('mainApp').classList.remove('hidden');
+
+  // If URL has ?id=xxx, open that submission directly
+  const params = new URLSearchParams(location.search);
+  const subId = params.get('id');
+  if (subId) openSubmission(subId);
+  else loadAllSubmissions();
+}
+
+if (adminPwd) verifyAndLoad();
+
+async function apiFetch(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-admin-password': adminPwd,
+      ...(options.headers || {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+}
+
+// ===== LIST =====
+async function loadAllSubmissions() {
+  const filter = document.getElementById('statusFilter').value;
+  const url = `/api/submissions${filter ? `?status=${filter}` : ''}`;
+  const res = await apiFetch(url);
+  const subs = await res.json();
+  renderList(subs);
+}
+
+function renderList(subs) {
+  const tbody = document.getElementById('submissionsTable');
+  if (subs.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted" style="padding:40px">No submissions found</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = subs.map(s => `
+    <tr>
+      <td><strong>${escHtml(s.participantName)}</strong><br/><span class="text-muted" style="font-size:12px">${escHtml(s.participantEmail)}</span></td>
+      <td>${escHtml(s.examTitle || '')}</td>
+      <td class="text-muted">${formatDate(s.submittedAt)}</td>
+      <td>${statusBadge(s.status)}</td>
+      <td>${s.autoPoints} / ${s.maxPoints}</td>
+      <td>
+        <button class="btn btn-sm ${s.status === 'pending_review' ? 'btn-primary' : 'btn-secondary'}" onclick="openSubmission('${s.id}')">
+          ${s.status === 'pending_review' ? 'Grade' : 'View'}
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function showList() {
+  document.getElementById('gradeView').classList.add('hidden');
+  document.getElementById('listView').classList.remove('hidden');
+  history.pushState({}, '', '/review');
+  loadAllSubmissions();
+}
+
+// ===== GRADING =====
+async function openSubmission(subId) {
+  const res = await apiFetch(`/api/submissions/${subId}`);
+  const data = await res.json();
+  currentSub = data.submission;
+  currentExam = data.exam;
+  gradingData = {};
+
+  // Init grading data from existing values
+  currentSub.answers.forEach(a => {
+    if (a.type === 'subjective') {
+      gradingData[a.questionId] = {
+        points: a.manualPoints ?? '',
+        feedback: a.feedback || '',
+      };
+    }
+  });
+
+  document.getElementById('gradeParticipantName').textContent = currentSub.participantName;
+  document.getElementById('gradeExamTitle').textContent = `${currentSub.examTitle} — ${currentSub.participantEmail}`;
+
+  document.getElementById('listView').classList.add('hidden');
+  document.getElementById('gradeView').classList.remove('hidden');
+
+  renderAnswerCards();
+  renderScoreSummary();
+}
+
+function renderAnswerCards() {
+  const container = document.getElementById('answerCards');
+  container.innerHTML = currentExam.questions.map((q, i) => {
+    const ans = currentSub.answers.find(a => a.questionId === q.id);
+    if (!ans) return '';
+
+    if (q.type === 'mcq') {
+      const selected = ans.selectedOption;
+      const isCorrect = ans.isCorrect;
+      return `
+        <div class="review-answer-card">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="background:var(--primary);color:white;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">${i + 1}</span>
+            <span class="badge badge-info">MCQ — Auto-graded</span>
+            <span class="badge ${isCorrect ? 'badge-success' : 'badge-danger'}">${isCorrect ? '✓ Correct' : '✗ Wrong'}</span>
+            <span style="margin-left:auto;font-weight:700;color:${isCorrect ? 'var(--success)' : 'var(--danger)'};">${ans.autoPoints} / ${q.maxPoints} pts</span>
+          </div>
+          <div class="question-text">${escHtml(q.text)}</div>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+            ${q.options.map((opt, oi) => `
+              <div style="padding:8px 12px;border-radius:6px;font-size:13px;background:${oi === q.correctOption ? '#d1fae5' : oi === selected && !isCorrect ? '#fee2e2' : 'var(--bg)'};color:${oi === q.correctOption ? '#065f46' : oi === selected && !isCorrect ? '#991b1b' : 'var(--text)'};border:1px solid ${oi === q.correctOption ? '#6ee7b7' : oi === selected && !isCorrect ? '#fca5a5' : 'var(--border)'};">
+                ${String.fromCharCode(65+oi)}. ${escHtml(opt)}
+                ${oi === q.correctOption ? ' ✓ Correct Answer' : ''}
+                ${oi === selected && oi !== q.correctOption ? ' ← Participant selected' : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      // Subjective
+      const gd = gradingData[q.id] || { points: '', feedback: '' };
+      return `
+        <div class="review-answer-card" id="scard-${q.id}">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <span style="background:var(--primary);color:white;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">${i + 1}</span>
+            <span class="badge badge-purple">Subjective</span>
+            ${ans.manualPoints != null ? `<span class="badge badge-success">Graded: ${ans.manualPoints}/${q.maxPoints}</span>` : '<span class="badge badge-warning">Needs Grading</span>'}
+          </div>
+          <div class="question-text">${escHtml(q.text)}</div>
+          <div class="answer-box" style="margin-top:12px;">${escHtml(ans.text || '(No answer provided)')}</div>
+          <div class="points-input-row" style="margin-bottom:10px;">
+            <label>Points (max ${q.maxPoints}):</label>
+            <input
+              type="number"
+              class="points-input"
+              min="0"
+              max="${q.maxPoints}"
+              value="${gd.points}"
+              id="pts-${q.id}"
+              oninput="updateGrading('${q.id}')"
+            />
+            <span style="font-size:13px;color:var(--muted);">/ ${q.maxPoints}</span>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label style="font-size:12px;color:var(--muted);">Feedback (optional)</label>
+            <textarea
+              class="form-control"
+              rows="2"
+              placeholder="Leave feedback for the participant..."
+              id="fb-${q.id}"
+              oninput="updateGrading('${q.id}')"
+            >${escHtml(gd.feedback)}</textarea>
+          </div>
+        </div>
+      `;
+    }
+  }).join('');
+}
+
+function updateGrading(qid) {
+  const pts = document.getElementById(`pts-${qid}`)?.value;
+  const fb = document.getElementById(`fb-${qid}`)?.value;
+  gradingData[qid] = { points: pts, feedback: fb };
+  renderScoreSummary();
+}
+
+function renderScoreSummary() {
+  const summary = document.getElementById('scoreSummary');
+  let autoTotal = 0;
+  let manualTotal = 0;
+  let manualMax = 0;
+  let pendingCount = 0;
+  let autoMax = 0;
+
+  currentExam.questions.forEach(q => {
+    const ans = currentSub.answers.find(a => a.questionId === q.id);
+    if (!ans) return;
+    if (q.type === 'mcq') {
+      autoTotal += ans.autoPoints;
+      autoMax += q.maxPoints;
+    } else {
+      manualMax += q.maxPoints;
+      const gd = gradingData[q.id];
+      const pts = gd && gd.points !== '' ? parseFloat(gd.points) : null;
+      if (pts !== null && !isNaN(pts)) {
+        manualTotal += pts;
+      } else {
+        pendingCount++;
+      }
+    }
+  });
+
+  const totalMax = currentSub.maxPoints;
+  const currentTotal = autoTotal + manualTotal;
+
+  summary.innerHTML = `
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Auto-graded (MCQ)</div>
+      <div style="font-size:18px;font-weight:700;">${autoTotal} <span style="color:var(--muted);font-size:14px;">/ ${autoMax}</span></div>
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Subjective</div>
+      <div style="font-size:18px;font-weight:700;">${manualTotal} <span style="color:var(--muted);font-size:14px;">/ ${manualMax}</span></div>
+      ${pendingCount > 0 ? `<div style="font-size:12px;color:var(--warning);margin-top:2px;">${pendingCount} question${pendingCount>1?'s':''} not graded yet</div>` : ''}
+    </div>
+    <div style="background:var(--bg);border-radius:8px;padding:14px;text-align:center;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">CURRENT TOTAL</div>
+      <div style="font-size:28px;font-weight:800;color:var(--primary);">${currentTotal}</div>
+      <div style="font-size:13px;color:var(--muted);">out of ${totalMax}</div>
+      ${pendingCount === 0 ? `<div style="margin-top:6px;font-size:13px;font-weight:600;color:var(--success);">${((currentTotal/totalMax)*100).toFixed(1)}%</div>` : ''}
+    </div>
+  `;
+}
+
+async function saveGrades() {
+  const subjectiveQs = currentExam.questions.filter(q => q.type === 'subjective');
+
+  for (const q of subjectiveQs) {
+    const gd = gradingData[q.id];
+    if (!gd || gd.points === '') {
+      showToast(`Please grade Q: "${q.text.substring(0, 30)}..."`, 'error');
+      return;
+    }
+    const pts = parseFloat(gd.points);
+    if (isNaN(pts) || pts < 0 || pts > q.maxPoints) {
+      showToast(`Invalid points for a question (0–${q.maxPoints})`, 'error');
+      return;
+    }
+  }
+
+  const grades = subjectiveQs.map(q => ({
+    questionId: q.id,
+    points: parseFloat(gradingData[q.id].points),
+    feedback: gradingData[q.id].feedback || '',
+  }));
+
+  const res = await apiFetch(`/api/submissions/${currentSub.id}/grade`, {
+    method: 'POST',
+    body: { grades },
+  });
+
+  if (!res.ok) { showToast('Failed to save grades', 'error'); return; }
+
+  const updated = await res.json();
+  currentSub = updated;
+  showToast('Grades saved!', 'success');
+
+  // Refresh the view
+  await openSubmission(currentSub.id);
+}
+
+// ===== UTILS =====
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function statusBadge(status) {
+  const map = {
+    graded: '<span class="badge badge-success">Graded</span>',
+    pending_review: '<span class="badge badge-warning">Pending Review</span>',
+  };
+  return map[status] || `<span class="badge badge-gray">${status}</span>`;
+}
+</script>
+</body>
+</html>
