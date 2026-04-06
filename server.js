@@ -10,9 +10,12 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 // --- MongoDB Connection ---
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/certify')
+const rawUri = process.env.MONGODB_URI || '';
+const mongoUri = rawUri.trim().replace(/^["'`]+|["'`]+$/g, '') || 'mongodb://localhost:27017/certify';
+console.log('Connecting to MongoDB, URI starts with:', mongoUri.substring(0, 20));
+mongoose.connect(mongoUri)
   .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('MongoDB error:', err));
+  .catch(err => console.error('❌ MongoDB error:', err.message));
 
 // --- Schemas ---
 const questionSchema = new mongoose.Schema({
