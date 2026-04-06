@@ -17,7 +17,10 @@
     <p class="subtitle">Sign in to manage your certification programs</p>
     <div class="form-group" style="text-align:left;">
       <label>Admin Password</label>
-      <input type="password" id="authInput" class="form-control" placeholder="Enter your password" />
+      <div style="position:relative;">
+        <input type="password" id="authInput" class="form-control" placeholder="Enter your password" style="padding-right:44px;" />
+        <button onclick="togglePwd()" type="button" id="togglePwdBtn" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:4px;">👁</button>
+      </div>
     </div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;" onclick="doLogin()">Sign In →</button>
     <p style="margin-top:14px;font-size:12px;color:#9CA3AF;">Default password: admin123</p>
@@ -314,6 +317,18 @@ function doLogin() {
 document.getElementById('authInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') doLogin();
 });
+
+function togglePwd() {
+  const input = document.getElementById('authInput');
+  const btn = document.getElementById('togglePwdBtn');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁';
+  }
+}
 
 async function verifyAndLoad() {
   try {
