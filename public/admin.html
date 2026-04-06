@@ -11,15 +11,16 @@
 <!-- AUTH SCREEN -->
 <div id="authScreen" class="auth-screen">
   <div class="auth-box">
-    <div class="logo">🎓</div>
+    <div class="logo">🎯</div>
+    <div class="tagline">GTM Enablement Platform</div>
     <h1>CertifyPro</h1>
-    <p>Enterprise Certification Platform</p>
+    <p class="subtitle">Sign in to manage your certification programs</p>
     <div class="form-group" style="text-align:left;">
       <label>Admin Password</label>
-      <input type="password" id="authInput" class="form-control" placeholder="Enter password" />
+      <input type="password" id="authInput" class="form-control" placeholder="Enter your password" />
     </div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Sign In</button>
-    <p style="margin-top:12px;font-size:12px;color:#94a3b8;">Default: admin123 (change in .env)</p>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;" onclick="doLogin()">Sign In →</button>
+    <p style="margin-top:14px;font-size:12px;color:#9CA3AF;">Default password: admin123</p>
   </div>
 </div>
 
@@ -27,8 +28,11 @@
 <div id="mainApp" class="hidden">
   <nav class="topbar">
     <div class="topbar-brand">
-      <div class="logo-icon">🎓</div>
-      CertifyPro
+      <div class="logo-icon">🎯</div>
+      <div>
+        CertifyPro
+        <span class="brand-sub">GTM Enablement</span>
+      </div>
     </div>
     <div class="topbar-nav">
       <a href="/" class="active">Admin</a>
@@ -41,11 +45,36 @@
     <div id="examListView">
       <div class="page-header flex items-center justify-between">
         <div>
-          <h1>Exams</h1>
-          <p>Create and manage your certification exams</p>
+          <h1>Certification Exams</h1>
+          <p>Create and manage your GTM enablement certifications</p>
         </div>
         <button class="btn btn-primary" onclick="openCreateExam()">+ New Exam</button>
       </div>
+
+      <!-- Stats Row -->
+      <div class="stats-row" id="statsRow">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#EDE9FE;">🎯</div>
+          <div class="stat-value" id="statExams">0</div>
+          <div class="stat-label">Total Exams</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#DBEAFE;">🔗</div>
+          <div class="stat-value" id="statLinks">0</div>
+          <div class="stat-label">Links Generated</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#D1FAE5;">✅</div>
+          <div class="stat-value" id="statSubmissions">0</div>
+          <div class="stat-label">Submissions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:#FEF3C7;">⏳</div>
+          <div class="stat-value" id="statPending">0</div>
+          <div class="stat-label">Pending Review</div>
+        </div>
+      </div>
+
       <div id="examGrid" class="exam-grid">
         <div class="empty-state" style="grid-column:1/-1">
           <div class="empty-icon">📋</div>
@@ -322,24 +351,46 @@ async function loadExams() {
   const res = await apiFetch('/api/exams');
   exams = await res.json();
   renderExamGrid();
+  loadStats();
 }
 
 function renderExamGrid() {
   const grid = document.getElementById('examGrid');
+
+  // Update stats
+  document.getElementById('statExams').textContent = exams.length;
+
   if (exams.length === 0) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📋</div><h3>No exams yet</h3><p>Click "New Exam" to create your first certification</p></div>`;
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🎯</div><h3>No exams yet</h3><p>Click "New Exam" to create your first GTM certification</p></div>`;
     return;
   }
-  grid.innerHTML = exams.map(exam => `
+
+  const icons = ['📋','🎯','🚀','💡','🏆','⚡','🔥','🎓'];
+  grid.innerHTML = exams.map((exam, i) => `
     <div class="exam-item-card" onclick="openExam('${exam.id}')">
+      <div class="exam-icon">${icons[i % icons.length]}</div>
       <h3>${escHtml(exam.title)}</h3>
-      <p>${escHtml(exam.description || 'No description')}</p>
+      <p>${escHtml(exam.description || 'No description added yet')}</p>
       <div class="exam-item-meta">
-        <span class="badge badge-info">${exam.questions.length} questions</span>
-        ${exam.timeLimit ? `<span class="badge badge-gray">${exam.timeLimit} min</span>` : '<span class="badge badge-gray">No time limit</span>'}
+        <span class="badge badge-purple">${exam.questions.length} questions</span>
+        ${exam.timeLimit ? `<span class="badge badge-orange">⏱ ${exam.timeLimit} min</span>` : '<span class="badge badge-gray">No time limit</span>'}
       </div>
     </div>
   `).join('');
+}
+
+async function loadStats() {
+  try {
+    const [linksRes, subsRes] = await Promise.all([
+      apiFetch('/api/links'),
+      apiFetch('/api/submissions'),
+    ]);
+    const links = await linksRes.json();
+    const subs = await subsRes.json();
+    document.getElementById('statLinks').textContent = links.length;
+    document.getElementById('statSubmissions').textContent = subs.length;
+    document.getElementById('statPending').textContent = subs.filter(s => s.status === 'pending_review').length;
+  } catch {}
 }
 
 function openCreateExam() {
