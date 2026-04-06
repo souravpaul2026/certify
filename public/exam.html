@@ -143,8 +143,13 @@ async function loadExam() {
   try {
     const res = await fetch(`/api/take/${token}`);
     if (res.status === 409) {
-      hide('loadingScreen');
-      show('alreadyDoneScreen');
+      const data = await res.json();
+      if (data.submission && data.submission.id) {
+        window.location.href = `/result/${data.submission.id}`;
+      } else {
+        hide('loadingScreen');
+        show('alreadyDoneScreen');
+      }
       return;
     }
     if (!res.ok) {
