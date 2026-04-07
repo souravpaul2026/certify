@@ -64,6 +64,8 @@ const submissionSchema = new mongoose.Schema({
   examTitle: String,
   participantName: String,
   participantEmail: String,
+  googleName: String,
+  googleEmail: String,
   answers: [answerSchema],
   autoPoints: { type: Number, default: 0 },
   totalPoints: Number,
@@ -258,7 +260,7 @@ app.post('/api/take/:token/submit', async (req, res) => {
   if (existing) return res.status(409).json({ error: 'Exam already submitted' });
   const exam = await Exam.findOne({ id: link.examId });
   if (!exam) return res.status(404).json({ error: 'Exam not found' });
-  const { answers } = req.body;
+  const { answers, googleName, googleEmail } = req.body;
   if (!answers) return res.status(400).json({ error: 'answers[] required' });
 
   let hasSubjective = false;
@@ -282,7 +284,8 @@ app.post('/api/take/:token/submit', async (req, res) => {
 
   const submission = await Submission.create({
     id: uuidv4(), token: req.params.token, examId: link.examId, examTitle: exam.title,
-    participantName: link.participantName, participantEmail: link.participantEmail,
+    participantName: googleName || link.participantName, participantEmail: googleEmail || link.participantEmail,
+    googleName: googleName || null, googleEmail: googleEmail || null,
     answers: gradedAnswers, autoPoints: autoTotal,
     totalPoints: hasSubjective ? undefined : autoTotal,
     maxPoints, status: hasSubjective ? 'pending_review' : 'graded',
@@ -377,11 +380,15 @@ app.get('/result/:id', (req, res) => res.sendFile(path.join(__dirname, 'public',
 
 // ===================== START =====================
 
-initSheets().then(() => {
+initSheets();
+
+if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`\n🎓 Certification Platform running at http://localhost:${PORT}`);
     console.log(`   Admin password: ${ADMIN_PASSWORD}`);
     console.log(`   Admin panel:    http://localhost:${PORT}/`);
     console.log(`   Review page:    http://localhost:${PORT}/review\n`);
   });
-});
+}
+
+module.exports = app;

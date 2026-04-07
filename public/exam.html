@@ -5,10 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CertifyPro — Exam</title>
   <link rel="stylesheet" href="/style.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
-<div id="loadingScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);">
+<!-- GOOGLE AUTH SCREEN -->
+<div id="googleAuthScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1E0B4B 0%,#3B1FA3 50%,#6C2BD9 100%);padding:24px;">
+  <div style="background:white;border-radius:20px;padding:44px;max-width:420px;width:100%;box-shadow:0 32px 80px rgba(0,0,0,0.25);text-align:center;">
+    <div style="width:68px;height:68px;background:linear-gradient(135deg,#6C2BD9,#8B5CF6);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 20px;box-shadow:0 8px 24px rgba(108,43,217,0.35);">🎯</div>
+    <h1 style="font-size:22px;font-weight:800;color:#3B1FA3;margin-bottom:8px;">CertifyPro</h1>
+    <p style="color:#6B7280;font-size:14px;margin-bottom:28px;">Sign in with Google to access your exam</p>
+    <div id="googleSignInBtn" style="display:flex;justify-content:center;margin-bottom:16px;"></div>
+    <p style="font-size:12px;color:#9CA3AF;">Your identity will be verified before starting the exam</p>
+  </div>
+</div>
+
+<div id="loadingScreen" style="display:none;" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);">
   <div style="text-align:center;">
     <div style="font-size:48px;margin-bottom:16px;">🎓</div>
     <p style="color:var(--muted);font-size:15px;">Loading your exam...</p>
@@ -130,13 +142,41 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
+const GOOGLE_CLIENT_ID = '1031137382933-2tcqnmtjeftggvmg1m3eg549tn9bqqdt.apps.googleusercontent.com';
+
 const token = location.pathname.split('/exam/')[1];
 let examData = null;
 let participant = null;
+let googleUser = null;
 let answers = {}; // questionId -> answer
 let timerInterval = null;
 let secondsLeft = 0;
 let examStarted = false;
+
+// ===== GOOGLE AUTH =====
+window.addEventListener('load', () => {
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleSignIn,
+    auto_select: false,
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('googleSignInBtn'),
+    { theme: 'outline', size: 'large', width: 300, text: 'signin_with' }
+  );
+});
+
+function handleGoogleSignIn(response) {
+  try {
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    googleUser = { name: payload.name, email: payload.email, picture: payload.picture };
+    document.getElementById('googleAuthScreen').style.display = 'none';
+    document.getElementById('loadingScreen').style.display = '';
+    loadExam();
+  } catch(e) {
+    alert('Google sign-in failed. Please try again.');
+  }
+}
 
 // ===== LOAD =====
 async function loadExam() {
@@ -159,7 +199,7 @@ async function loadExam() {
     }
     const data = await res.json();
     examData = data.exam;
-    participant = data.participant;
+    participant = { name: googleUser.name, email: googleUser.email };
     setupStartScreen();
   } catch (e) {
     showError('Connection Error', 'Could not connect to the server. Please try again.');
@@ -312,7 +352,7 @@ async function submitExam() {
     const res = await fetch(`/api/take/${token}/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers: answerArray }),
+      body: JSON.stringify({ answers: answerArray, googleName: googleUser.name, googleEmail: googleUser.email }),
     });
 
     if (!res.ok) {
