@@ -128,6 +128,19 @@
 
       <!-- Links Tab -->
       <div id="tab-links" class="tab-pane">
+        <div class="card" style="margin-bottom:20px;border:2px solid #C4B5FD;">
+          <div class="card-header" style="background:#F5F3FF;">
+            <h2 style="color:#6C2BD9;">🔗 Public Exam Link</h2>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Share this single link with everyone. Anyone with a Google account can take the exam — their identity is captured automatically.</p>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="publicLinkInput" class="form-control" readonly style="font-size:13px;color:var(--muted);" />
+              <button class="btn btn-primary btn-sm" onclick="copyPublicLink()">Copy</button>
+            </div>
+          </div>
+        </div>
+
         <div class="card" style="margin-bottom:20px;">
           <div class="card-header">
             <h2>Generate Individual Links</h2>
@@ -441,8 +454,15 @@ async function openExam(examId) {
   document.getElementById('examDetailView').classList.remove('hidden');
   document.getElementById('detailExamTitle').textContent = currentExam.title;
   document.getElementById('detailExamDesc').textContent = currentExam.description || '';
+  document.getElementById('publicLinkInput').value = `${location.origin}/open/${currentExam.id}`;
   switchTab('questions');
   renderQuestions();
+}
+
+function copyPublicLink() {
+  const input = document.getElementById('publicLinkInput');
+  navigator.clipboard.writeText(input.value);
+  showToast('Public link copied!', 'success');
 }
 
 function showExamList() {

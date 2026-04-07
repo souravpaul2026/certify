@@ -371,10 +371,62 @@ app.get('/api/export/:examId', adminAuth, async (req, res) => {
   res.send(csv);
 });
 
+// ===================== OPEN EXAM (single shareable link) =====================
+
+app.get('/api/open/:examId', async (req, res) => {
+  const exam = await Exam.findOne({ id: req.params.examId });
+  if (!exam) return res.status(404).json({ error: 'Exam not found' });
+  const safeExam = { ...exam.toObject(), questions: exam.questions.map(q => ({ id: q.id, type: q.type, text: q.text, options: q.options, maxPoints: q.maxPoints, order: q.order })) };
+  res.json({ exam: safeExam });
+});
+
+app.post('/api/open/:examId/submit', async (req, res) => {
+  const exam = await Exam.findOne({ id: req.params.examId });
+  if (!exam) return res.status(404).json({ error: 'Exam not found' });
+  const { answers, googleName, googleEmail } = req.body;
+  if (!answers || !googleEmail) return res.status(400).json({ error: 'answers and googleEmail required' });
+
+  const existing = await Submission.findOne({ examId: req.params.examId, googleEmail });
+  if (existing) return res.status(409).json({ error: 'Already submitted', submission: { id: existing.id, status: existing.status } });
+
+  let hasSubjective = false;
+  let autoTotal = 0;
+  let maxPoints = 0;
+
+  const gradedAnswers = exam.questions.map(q => {
+    const ans = answers.find(a => a.questionId === q.id);
+    maxPoints += q.maxPoints;
+    if (q.type === 'mcq') {
+      const selectedOption = ans ? ans.selectedOption : null;
+      const correct = selectedOption === q.correctOption;
+      const pts = selectedOption !== null ? (correct ? 10 : 0) : 0;
+      autoTotal += pts;
+      return { questionId: q.id, type: 'mcq', selectedOption, isCorrect: correct, autoPoints: pts };
+    } else {
+      hasSubjective = true;
+      return { questionId: q.id, type: 'subjective', text: ans ? ans.text : '', manualPoints: null, feedback: null };
+    }
+  });
+
+  const submission = await Submission.create({
+    id: uuidv4(), token: null, examId: exam.id, examTitle: exam.title,
+    participantName: googleName, participantEmail: googleEmail,
+    googleName, googleEmail,
+    answers: gradedAnswers, autoPoints: autoTotal,
+    totalPoints: hasSubjective ? undefined : autoTotal,
+    maxPoints, status: hasSubjective ? 'pending_review' : 'graded',
+    gradedAt: hasSubjective ? undefined : new Date(),
+  });
+
+  await appendToSheet(submission, exam);
+  res.json({ success: true, submissionId: submission.id, status: submission.status, autoPoints: submission.autoPoints, totalPoints: submission.totalPoints, maxPoints: submission.maxPoints });
+});
+
 // ===================== STATIC ROUTES =====================
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/exam/:token', (req, res) => res.sendFile(path.join(__dirname, 'public', 'exam.html')));
+app.get('/open/:examId', (req, res) => res.sendFile(path.join(__dirname, 'public', 'open-exam.html')));
 app.get('/review', (req, res) => res.sendFile(path.join(__dirname, 'public', 'review.html')));
 app.get('/result/:id', (req, res) => res.sendFile(path.join(__dirname, 'public', 'result.html')));
 
