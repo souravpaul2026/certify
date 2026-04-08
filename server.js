@@ -373,6 +373,14 @@ app.get('/api/export/:examId', adminAuth, async (req, res) => {
 
 // ===================== OPEN EXAM (single shareable link) =====================
 
+app.get('/api/open/:examId/check', async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.json({ submitted: false });
+  const existing = await Submission.findOne({ examId: req.params.examId, googleEmail: email });
+  if (existing) return res.json({ submitted: true, submissionId: existing.id });
+  res.json({ submitted: false });
+});
+
 app.get('/api/open/:examId', async (req, res) => {
   const exam = await Exam.findOne({ id: req.params.examId });
   if (!exam) return res.status(404).json({ error: 'Exam not found' });

@@ -162,10 +162,19 @@ window.addEventListener('load', () => {
   );
 });
 
-function handleGoogleSignIn(response) {
+async function handleGoogleSignIn(response) {
   try {
     const payload = JSON.parse(atob(response.credential.split('.')[1]));
     googleUser = { name: payload.name, email: payload.email };
+
+    // Check if already submitted
+    const checkRes = await fetch(`/api/open/${examId}/check?email=${encodeURIComponent(googleUser.email)}`);
+    const checkData = await checkRes.json();
+    if (checkData.submitted && checkData.submissionId) {
+      window.location.href = `/result/${checkData.submissionId}?alreadySubmitted=true`;
+      return;
+    }
+
     document.getElementById('googleAuthScreen').style.display = 'none';
     document.getElementById('loadingScreen').style.display = 'flex';
     loadExam();

@@ -155,8 +155,30 @@ let timerInterval = null;
 let secondsLeft = 0;
 let examStarted = false;
 
+// ===== CHECK IF ALREADY SUBMITTED (before showing Google auth) =====
+async function checkSubmissionStatus() {
+  try {
+    const res = await fetch(`/api/take/${token}`);
+    if (res.status === 409) {
+      const data = await res.json();
+      if (data.submission && data.submission.id) {
+        window.location.href = `/result/${data.submission.id}?alreadySubmitted=true`;
+      } else {
+        document.getElementById('googleAuthScreen').style.display = 'none';
+        show('alreadyDoneScreen');
+      }
+      return true;
+    }
+    return false;
+  } catch(e) {
+    return false;
+  }
+}
+
 // ===== GOOGLE AUTH =====
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
+  const done = await checkSubmissionStatus();
+  if (done) return;
   google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
     callback: handleGoogleSignIn,
@@ -187,7 +209,7 @@ async function loadExam() {
     if (res.status === 409) {
       const data = await res.json();
       if (data.submission && data.submission.id) {
-        window.location.href = `/result/${data.submission.id}`;
+        window.location.href = `/result/${data.submission.id}?alreadySubmitted=true`;
       } else {
         hide('loadingScreen');
         show('alreadyDoneScreen');

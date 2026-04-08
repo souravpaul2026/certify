@@ -13,6 +13,12 @@
 </div>
 
 <div id="resultScreen" class="hidden">
+
+  <!-- Already submitted banner -->
+  <div id="alreadySubmittedBanner" style="display:none;background:#FEF3C7;border-bottom:2px solid #F59E0B;padding:14px 24px;text-align:center;">
+    <span style="font-size:15px;font-weight:700;color:#92400E;">⚠️ You have already submitted this exam. Below are your results.</span>
+  </div>
+
   <div class="result-hero">
     <p id="heroExamTitle" style="font-size:13px;opacity:0.7;margin-bottom:8px;"></p>
     <h1 id="heroName"></h1>
@@ -67,6 +73,11 @@ async function loadResult() {
 
   document.getElementById('loadingScreen').style.display = 'none';
   document.getElementById('resultScreen').classList.remove('hidden');
+
+  // Show banner if redirected after re-attempt
+  if (new URLSearchParams(location.search).get('alreadySubmitted') === 'true') {
+    document.getElementById('alreadySubmittedBanner').style.display = 'block';
+  }
 
   document.getElementById('heroExamTitle').textContent = exam.title;
   document.getElementById('heroName').textContent = sub.participantName;
