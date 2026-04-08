@@ -82,16 +82,18 @@
   </div>
 </div>
 
+<!-- FIXED TIMER -->
+<div id="timerFixed" class="timer-fixed hidden"></div>
+
 <!-- EXAM SCREEN -->
 <div id="examScreen" class="hidden exam-layout">
   <div class="exam-header">
-    <div>
-      <div class="exam-title" id="examHeaderTitle"></div>
-      <div class="participant-info" id="examHeaderParticipant"></div>
-    </div>
-    <div style="display:flex;align-items:center;gap:16px;">
+    <div class="exam-header-inner">
+      <div>
+        <div class="exam-title" id="examHeaderTitle"></div>
+        <div class="participant-info" id="examHeaderParticipant"></div>
+      </div>
       <span id="progressText" style="font-size:13px;color:var(--muted);"></span>
-      <div id="timerBox" class="timer-box hidden"></div>
     </div>
   </div>
   <div class="exam-progress-bar">
@@ -230,7 +232,7 @@ function startExam() {
 
   if (examData.timeLimit > 0) {
     secondsLeft = examData.timeLimit * 60;
-    document.getElementById('timerBox').classList.remove('hidden');
+    document.getElementById('timerFixed').classList.remove('hidden');
     updateTimer();
     timerInterval = setInterval(() => {
       secondsLeft--;
@@ -311,11 +313,11 @@ function updateProgress() {
 }
 
 function updateTimer() {
-  const box = document.getElementById('timerBox');
+  const box = document.getElementById('timerFixed');
   const mins = Math.floor(secondsLeft / 60).toString().padStart(2, '0');
   const secs = (secondsLeft % 60).toString().padStart(2, '0');
-  box.textContent = `${mins}:${secs}`;
-  box.className = 'timer-box';
+  box.textContent = `⏱ ${mins}:${secs}`;
+  box.className = 'timer-fixed';
   if (secondsLeft <= 60) box.classList.add('danger');
   else if (secondsLeft <= 300) box.classList.add('warning');
 }

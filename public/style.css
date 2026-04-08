@@ -448,13 +448,18 @@ tr:hover td { background: #FAFBFF; }
   background: white;
   border-bottom: 1px solid var(--border);
   padding: 14px 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   position: sticky;
   top: 0;
   z-index: 50;
   box-shadow: var(--shadow);
+}
+
+.exam-header-inner {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .exam-header .exam-title {
@@ -489,7 +494,25 @@ tr:hover td { background: #FAFBFF; }
   transition: width 0.4s ease;
 }
 
-.exam-body { max-width: 780px; margin: 0 auto; padding: 32px 24px; }
+.exam-body { max-width: 860px; margin: 0 auto; padding: 32px 24px; }
+
+.timer-fixed {
+  position: fixed;
+  top: 16px;
+  right: 24px;
+  z-index: 999;
+  background: linear-gradient(135deg, var(--primary), #8B5CF6);
+  color: white;
+  padding: 10px 22px;
+  border-radius: 99px;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 16px rgba(108,43,217,0.4);
+  pointer-events: none;
+}
+.timer-fixed.warning { background: linear-gradient(135deg, var(--warning), #FCD34D); color: #7C2D12; }
+.timer-fixed.danger { background: linear-gradient(135deg, var(--danger), #F87171); animation: pulse 1s infinite; }
 
 .exam-question-card {
   background: white;
