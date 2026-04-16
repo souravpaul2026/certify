@@ -40,6 +40,7 @@
     <div class="topbar-nav">
       <a href="/" class="active">Admin</a>
       <a href="/review">Review</a>
+      <a href="/resources">Resources</a>
     </div>
   </nav>
 
@@ -310,6 +311,47 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('bulkImportModal')">Cancel</button>
       <button class="btn btn-primary" onclick="bulkImport()">Import & Generate Links</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Resource Modal -->
+<div class="modal-overlay" id="addResourceModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Resource</h3>
+      <button class="close-btn" onclick="closeModal('addResourceModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Title *</label>
+        <input type="text" id="resTitle" class="form-control" placeholder="e.g. GTM Masterclass Deck" />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="resDesc" class="form-control" placeholder="Brief description" />
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="resType" class="form-control">
+          <option value="deck">Deck / Presentation</option>
+          <option value="recording">Recording</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Upload File <span style="color:var(--muted);font-weight:400">(PDF, PPT — max 20MB)</span></label>
+        <input type="file" id="resFile" class="form-control" accept=".pdf,.ppt,.pptx,.doc,.docx" />
+      </div>
+      <div style="text-align:center;color:var(--muted);font-size:13px;margin:8px 0;">— or paste a link —</div>
+      <div class="form-group">
+        <label>URL <span style="color:var(--muted);font-weight:400">(Google Drive, YouTube, Loom…)</span></label>
+        <input type="url" id="resUrl" class="form-control" placeholder="https://..." />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addResourceModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveResource()">Add Resource</button>
     </div>
   </div>
 </div>
@@ -788,6 +830,35 @@ function statusBadge(status) {
     pending_review: '<span class="badge badge-warning">Pending Review</span>',
   };
   return map[status] || `<span class="badge badge-gray">${status}</span>`;
+}
+
+// ===== RESOURCES =====
+async function saveResource() {
+  const title = document.getElementById('resTitle').value.trim();
+  const description = document.getElementById('resDesc').value.trim();
+  const type = document.getElementById('resType').value;
+  const file = document.getElementById('resFile').files[0];
+  const url = document.getElementById('resUrl').value.trim();
+
+  if (!title) { showToast('Title is required', 'error'); return; }
+  if (!file && !url) { showToast('Upload a file or paste a URL', 'error'); return; }
+
+  const formData = new FormData();
+  formData.append('title', title);
+  formData.append('description', description);
+  formData.append('type', type);
+  if (file) formData.append('file', file);
+  if (url) formData.append('url', url);
+
+  const res = await fetch('/api/resources', {
+    method: 'POST',
+    headers: { 'x-admin-password': adminPwd },
+    body: formData,
+  });
+
+  if (!res.ok) { showToast('Failed to add resource', 'error'); return; }
+  showToast('Resource added!', 'success');
+  closeModal('addResourceModal');
 }
 </script>
 </body>

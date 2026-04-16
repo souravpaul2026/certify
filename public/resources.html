@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CertifyPro — Resources</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .resources-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 24px;
+    }
+    .resource-card {
+      background: #fff;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    .resource-card:hover {
+      box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+      transform: translateY(-2px);
+    }
+    .resource-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    .resource-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .resource-desc {
+      font-size: 13px;
+      color: var(--muted);
+      flex: 1;
+    }
+    .resource-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    .filter-btn {
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .filter-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .admin-add-bar {
+      display: none;
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: #F5F3FF;
+      border-radius: 10px;
+      border: 1.5px dashed #C4B5FD;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .admin-add-bar.visible { display: flex; }
+  </style>
+</head>
+<body>
+
+<div id="mainApp">
+  <nav class="topbar">
+    <div class="topbar-brand">
+      <div class="logo-icon">🎯</div>
+      <div>
+        CertifyPro
+        <span class="brand-sub">GTM Enablement</span>
+      </div>
+    </div>
+    <div class="topbar-nav">
+      <a href="/">Admin</a>
+      <a href="/review">Review</a>
+      <a href="/resources" class="active">Resources</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="page-header flex items-center justify-between">
+      <div>
+        <h1>Resources</h1>
+        <p>Session decks, recordings, and learning materials</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="btn btn-secondary btn-sm" onclick="toggleAdminMode()">Admin</button>
+      </div>
+    </div>
+
+    <!-- Admin add bar (visible when admin is logged in) -->
+    <div class="admin-add-bar" id="adminBar">
+      <span style="font-size:13px;color:#6C2BD9;font-weight:500;">Admin mode active</span>
+      <button class="btn btn-primary btn-sm" onclick="openModal('addResourceModal')">+ Add Resource</button>
+    </div>
+
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+      <button class="filter-btn" onclick="setFilter('deck', this)">Decks</button>
+      <button class="filter-btn" onclick="setFilter('recording', this)">Recordings</button>
+      <button class="filter-btn" onclick="setFilter('other', this)">Other</button>
+    </div>
+
+    <div id="resourcesGrid" class="resources-grid">
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">📂</div>
+        <h3>Loading resources...</h3>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Add Resource Modal -->
+<div class="modal-overlay" id="addResourceModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Resource</h3>
+      <button class="close-btn" onclick="closeModal('addResourceModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Title *</label>
+        <input type="text" id="resTitle" class="form-control" placeholder="e.g. GTM Masterclass Deck" />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="resDesc" class="form-control" placeholder="Brief description" />
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="resType" class="form-control">
+          <option value="deck">Deck / Presentation</option>
+          <option value="recording">Recording</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Upload File <span style="color:var(--muted);font-weight:400">(PDF, PPT — max 20MB)</span></label>
+        <input type="file" id="resFile" class="form-control" accept=".pdf,.ppt,.pptx,.doc,.docx" />
+      </div>
+      <div style="text-align:center;color:var(--muted);font-size:13px;margin:8px 0;">— or paste a link —</div>
+      <div class="form-group">
+        <label>URL <span style="color:var(--muted);font-weight:400">(Google Drive, YouTube, Loom…)</span></label>
+        <input type="url" id="resUrl" class="form-control" placeholder="https://..." />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('addResourceModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveResource()">Add Resource</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Auth Modal -->
+<div class="modal-overlay" id="adminAuthModal">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header">
+      <h3>Admin Login</h3>
+      <button class="close-btn" onclick="closeModal('adminAuthModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Admin Password</label>
+        <input type="password" id="adminPwdInput" class="form-control" placeholder="Enter password" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('adminAuthModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="doAdminLogin()">Login</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let adminPwd = localStorage.getItem('adminPwd') || '';
+let allResources = [];
+let currentFilter = 'all';
+let isAdmin = false;
+
+async function loadResources() {
+  const res = await fetch('/api/resources');
+  allResources = await res.json();
+  renderResources();
+}
+
+function setFilter(type, btn) {
+  currentFilter = type;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderResources();
+}
+
+function renderResources() {
+  const grid = document.getElementById('resourcesGrid');
+  const filtered = currentFilter === 'all' ? allResources : allResources.filter(r => r.type === currentFilter);
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📂</div><h3>No resources yet</h3><p>Resources will appear here once added</p></div>`;
+    return;
+  }
+
+  const iconMap = { deck: { icon: '📊', bg: '#EDE9FE' }, recording: { icon: '🎬', bg: '#DBEAFE' }, other: { icon: '📄', bg: '#F3F4F6' } };
+
+  grid.innerHTML = filtered.map(r => {
+    const { icon, bg } = iconMap[r.type] || iconMap.other;
+    const link = r.url || `/api/resources/${r.id}/download`;
+    const isExternal = !!r.url;
+    const size = r.fileSize ? `${(r.fileSize / 1024 / 1024).toFixed(1)} MB` : '';
+    return `
+      <div class="resource-card">
+        <div class="resource-icon" style="background:${bg}">${icon}</div>
+        <div class="resource-title">${escHtml(r.title)}</div>
+        ${r.description ? `<div class="resource-desc">${escHtml(r.description)}</div>` : ''}
+        <div class="resource-footer">
+          <span class="badge badge-gray">${r.type}</span>
+          ${size ? `<span style="font-size:12px;color:var(--muted)">${size}</span>` : ''}
+          <a href="${link}" target="${isExternal ? '_blank' : '_self'}" class="btn btn-primary btn-sm" style="margin-left:auto;">
+            ${isExternal ? 'Open' : 'Download'}
+          </a>
+          ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteResource('${r.id}')">Delete</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleAdminMode() {
+  if (isAdmin) {
+    isAdmin = false;
+    document.getElementById('adminBar').classList.remove('visible');
+    renderResources();
+    return;
+  }
+  if (adminPwd) {
+    activateAdmin();
+  } else {
+    document.getElementById('adminPwdInput').value = '';
+    openModal('adminAuthModal');
+  }
+}
+
+async function doAdminLogin() {
+  const pwd = document.getElementById('adminPwdInput').value;
+  const res = await fetch('/api/resources', { headers: { 'x-admin-password': pwd } });
+  if (!res.ok) { showToast('Wrong password', 'error'); return; }
+  adminPwd = pwd;
+  localStorage.setItem('adminPwd', pwd);
+  closeModal('adminAuthModal');
+  activateAdmin();
+}
+
+function activateAdmin() {
+  isAdmin = true;
+  document.getElementById('adminBar').classList.add('visible');
+  renderResources();
+}
+
+async function saveResource() {
+  const title = document.getElementById('resTitle').value.trim();
+  const description = document.getElementById('resDesc').value.trim();
+  const type = document.getElementById('resType').value;
+  const file = document.getElementById('resFile').files[0];
+  const url = document.getElementById('resUrl').value.trim();
+
+  if (!title) { showToast('Title is required', 'error'); return; }
+  if (!file && !url) { showToast('Upload a file or paste a URL', 'error'); return; }
+
+  const formData = new FormData();
+  formData.append('title', title);
+  formData.append('description', description);
+  formData.append('type', type);
+  if (file) formData.append('file', file);
+  if (url) formData.append('url', url);
+
+  const res = await fetch('/api/resources', {
+    method: 'POST',
+    headers: { 'x-admin-password': adminPwd },
+    body: formData,
+  });
+
+  if (!res.ok) { showToast('Failed to add resource', 'error'); return; }
+  const resource = await res.json();
+  allResources.unshift(resource);
+  renderResources();
+  closeModal('addResourceModal');
+  document.getElementById('resTitle').value = '';
+  document.getElementById('resDesc').value = '';
+  document.getElementById('resFile').value = '';
+  document.getElementById('resUrl').value = '';
+  showToast('Resource added!', 'success');
+}
+
+async function deleteResource(id) {
+  if (!confirm('Delete this resource?')) return;
+  await fetch(`/api/resources/${id}`, { method: 'DELETE', headers: { 'x-admin-password': adminPwd } });
+  allResources = allResources.filter(r => r.id !== id);
+  renderResources();
+  showToast('Resource deleted');
+}
+
+// ===== UTILS =====
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+  toast.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadResources();
+</script>
+</body>
+</html>

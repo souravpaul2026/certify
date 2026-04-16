@@ -5,6 +5,9 @@ const path = require('path');
 const cors = require('cors');
 const mongoose = require('mongoose');
 
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
@@ -75,9 +78,25 @@ const submissionSchema = new mongoose.Schema({
   gradedAt: Date,
 });
 
+const resourceSchema = new mongoose.Schema({
+  id: { type: String, default: () => uuidv4() },
+  title: String,
+  description: String,
+  type: { type: String, enum: ['deck', 'recording', 'other'], default: 'other' },
+  // URL-based resource
+  url: String,
+  // File-based resource
+  fileName: String,
+  fileData: Buffer,
+  fileMimeType: String,
+  fileSize: Number,
+  createdAt: { type: Date, default: Date.now },
+});
+
 const Exam = mongoose.model('Exam', examSchema);
 const Link = mongoose.model('Link', linkSchema);
 const Submission = mongoose.model('Submission', submissionSchema);
+const Resource = mongoose.model('Resource', resourceSchema);
 
 // --- Google Sheets setup ---
 let sheetsClient = null;
@@ -430,6 +449,53 @@ app.post('/api/open/:examId/submit', async (req, res) => {
   res.json({ success: true, submissionId: submission.id, status: submission.status, autoPoints: submission.autoPoints, totalPoints: submission.totalPoints, maxPoints: submission.maxPoints });
 });
 
+// ===================== RESOURCES =====================
+
+app.get('/api/resources', async (req, res) => {
+  const resources = await Resource.find().sort({ createdAt: -1 }).select('-fileData');
+  res.json(resources);
+});
+
+app.post('/api/resources', adminAuth, upload.single('file'), async (req, res) => {
+  const { title, description, type, url } = req.body;
+  if (!title) return res.status(400).json({ error: 'Title is required' });
+
+  const data = {
+    id: uuidv4(),
+    title,
+    description: description || '',
+    type: type || 'other',
+  };
+
+  if (req.file) {
+    data.fileName = req.file.originalname;
+    data.fileData = req.file.buffer;
+    data.fileMimeType = req.file.mimetype;
+    data.fileSize = req.file.size;
+  } else if (url) {
+    data.url = url;
+  } else {
+    return res.status(400).json({ error: 'Either a file or a URL is required' });
+  }
+
+  const resource = await Resource.create(data);
+  const { fileData, ...safe } = resource.toObject();
+  res.json(safe);
+});
+
+app.get('/api/resources/:id/download', async (req, res) => {
+  const resource = await Resource.findOne({ id: req.params.id });
+  if (!resource || !resource.fileData) return res.status(404).json({ error: 'File not found' });
+  res.setHeader('Content-Type', resource.fileMimeType || 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="${resource.fileName}"`);
+  res.send(resource.fileData);
+});
+
+app.delete('/api/resources/:id', adminAuth, async (req, res) => {
+  await Resource.deleteOne({ id: req.params.id });
+  res.json({ success: true });
+});
+
 // ===================== STATIC ROUTES =====================
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
@@ -437,6 +503,7 @@ app.get('/exam/:token', (req, res) => res.sendFile(path.join(__dirname, 'public'
 app.get('/open/:examId', (req, res) => res.sendFile(path.join(__dirname, 'public', 'open-exam.html')));
 app.get('/review', (req, res) => res.sendFile(path.join(__dirname, 'public', 'review.html')));
 app.get('/result/:id', (req, res) => res.sendFile(path.join(__dirname, 'public', 'result.html')));
+app.get('/resources', (req, res) => res.sendFile(path.join(__dirname, 'public', 'resources.html')));
 
 // ===================== START =====================
 
