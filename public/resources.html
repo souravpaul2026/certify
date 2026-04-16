@@ -86,6 +86,79 @@
       gap: 12px;
     }
     .admin-add-bar.visible { display: flex; }
+    .resource-thumb {
+      width: 100%;
+      height: 160px;
+      border-radius: 10px;
+      background: #0f0f0f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .resource-thumb:hover .play-btn { transform: scale(1.1); }
+    .play-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      transition: transform 0.15s;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    .player-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .player-modal-overlay.open { display: flex; }
+    .player-modal {
+      background: #000;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 900px;
+      overflow: hidden;
+      position: relative;
+    }
+    .player-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #1a1a1a;
+    }
+    .player-modal-title { color: #fff; font-size: 15px; font-weight: 600; }
+    .player-close {
+      background: none;
+      border: none;
+      color: #aaa;
+      font-size: 24px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .player-close:hover { color: #fff; }
+    .player-iframe-wrap {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%;
+    }
+    .player-iframe-wrap iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
   </style>
 </head>
 <body>
@@ -183,6 +256,19 @@
   </div>
 </div>
 
+<!-- Video Player Modal -->
+<div class="player-modal-overlay" id="playerModal" onclick="closePlayer(event)">
+  <div class="player-modal">
+    <div class="player-modal-header">
+      <span class="player-modal-title" id="playerTitle"></span>
+      <button class="player-close" onclick="closePlayerModal()">×</button>
+    </div>
+    <div class="player-iframe-wrap">
+      <iframe id="playerIframe" src="" allowfullscreen allow="autoplay"></iframe>
+    </div>
+  </div>
+</div>
+
 <!-- Admin Auth Modal -->
 <div class="modal-overlay" id="adminAuthModal">
   <div class="modal" style="max-width:360px;">
@@ -238,17 +324,25 @@ function renderResources() {
     const link = r.url || `/api/resources/${r.id}/download`;
     const isExternal = !!r.url;
     const size = r.fileSize ? `${(r.fileSize / 1024 / 1024).toFixed(1)} MB` : '';
+    const embedUrl = getEmbedUrl(r.url);
+    const isEmbeddable = !!embedUrl && r.type === 'recording';
+
     return `
       <div class="resource-card">
-        <div class="resource-icon" style="background:${bg}">${icon}</div>
+        ${isEmbeddable ? `
+          <div class="resource-thumb" onclick="openPlayer('${escHtml(r.title)}', '${embedUrl}')">
+            <div class="play-btn">▶</div>
+          </div>
+        ` : `<div class="resource-icon" style="background:${bg}">${icon}</div>`}
         <div class="resource-title">${escHtml(r.title)}</div>
         ${r.description ? `<div class="resource-desc">${escHtml(r.description)}</div>` : ''}
         <div class="resource-footer">
           <span class="badge badge-gray">${r.type}</span>
           ${size ? `<span style="font-size:12px;color:var(--muted)">${size}</span>` : ''}
-          <a href="${link}" target="${isExternal ? '_blank' : '_self'}" class="btn btn-primary btn-sm" style="margin-left:auto;">
-            ${isExternal ? 'Open' : 'Download'}
-          </a>
+          ${isEmbeddable
+            ? `<button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openPlayer('${escHtml(r.title)}', '${embedUrl}')">Watch</button>`
+            : `<a href="${link}" target="${isExternal ? '_blank' : '_self'}" class="btn btn-primary btn-sm" style="margin-left:auto;">${isExternal ? 'Open' : 'Download'}</a>`
+          }
           ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteResource('${r.id}')">Delete</button>` : ''}
         </div>
       </div>
@@ -350,6 +444,35 @@ function showToast(msg, type = 'info') {
 
 function escHtml(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getEmbedUrl(url) {
+  if (!url) return null;
+  // Google Drive: https://drive.google.com/file/d/FILE_ID/view or /open?id=FILE_ID
+  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/\?]+)/) ||
+                     url.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+
+  // YouTube: watch?v=ID or youtu.be/ID
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\?]+)/);
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+
+  return null;
+}
+
+function openPlayer(title, embedUrl) {
+  document.getElementById('playerTitle').textContent = title;
+  document.getElementById('playerIframe').src = embedUrl;
+  document.getElementById('playerModal').classList.add('open');
+}
+
+function closePlayerModal() {
+  document.getElementById('playerModal').classList.remove('open');
+  document.getElementById('playerIframe').src = '';
+}
+
+function closePlayer(e) {
+  if (e.target === document.getElementById('playerModal')) closePlayerModal();
 }
 
 loadResources();
