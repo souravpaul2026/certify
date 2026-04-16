@@ -78,14 +78,21 @@ const submissionSchema = new mongoose.Schema({
   gradedAt: Date,
 });
 
-const resourceSchema = new mongoose.Schema({
+const sessionSchema = new mongoose.Schema({
   id: { type: String, default: () => uuidv4() },
   title: String,
   description: String,
+  order: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now },
+});
+
+const resourceSchema = new mongoose.Schema({
+  id: { type: String, default: () => uuidv4() },
+  sessionId: String,
+  title: String,
+  description: String,
   type: { type: String, enum: ['deck', 'recording', 'other'], default: 'other' },
-  // URL-based resource
   url: String,
-  // File-based resource
   fileName: String,
   fileData: Buffer,
   fileMimeType: String,
@@ -96,6 +103,7 @@ const resourceSchema = new mongoose.Schema({
 const Exam = mongoose.model('Exam', examSchema);
 const Link = mongoose.model('Link', linkSchema);
 const Submission = mongoose.model('Submission', submissionSchema);
+const Session = mongoose.model('Session', sessionSchema);
 const Resource = mongoose.model('Resource', resourceSchema);
 
 // --- Google Sheets setup ---
@@ -449,24 +457,47 @@ app.post('/api/open/:examId/submit', async (req, res) => {
   res.json({ success: true, submissionId: submission.id, status: submission.status, autoPoints: submission.autoPoints, totalPoints: submission.totalPoints, maxPoints: submission.maxPoints });
 });
 
-// ===================== RESOURCES =====================
+// ===================== SESSIONS & RESOURCES =====================
 
-app.get('/api/resources', async (req, res) => {
-  const resources = await Resource.find().sort({ createdAt: -1 }).select('-fileData');
+// Sessions CRUD
+app.get('/api/sessions', async (req, res) => {
+  const sessions = await Session.find().sort({ order: 1, createdAt: 1 });
+  res.json(sessions);
+});
+
+app.post('/api/sessions', adminAuth, async (req, res) => {
+  const { title, description } = req.body;
+  if (!title) return res.status(400).json({ error: 'Title is required' });
+  const count = await Session.countDocuments();
+  const session = await Session.create({ id: uuidv4(), title, description: description || '', order: count });
+  res.json(session);
+});
+
+app.put('/api/sessions/:id', adminAuth, async (req, res) => {
+  const session = await Session.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  res.json(session);
+});
+
+app.delete('/api/sessions/:id', adminAuth, async (req, res) => {
+  await Session.deleteOne({ id: req.params.id });
+  await Resource.deleteMany({ sessionId: req.params.id });
+  res.json({ success: true });
+});
+
+// Resources per session
+app.get('/api/sessions/:sessionId/resources', async (req, res) => {
+  const resources = await Resource.find({ sessionId: req.params.sessionId }).sort({ createdAt: 1 }).select('-fileData');
   res.json(resources);
 });
 
-app.post('/api/resources', adminAuth, upload.single('file'), async (req, res) => {
+app.post('/api/sessions/:sessionId/resources', adminAuth, upload.single('file'), async (req, res) => {
   const { title, description, type, url } = req.body;
   if (!title) return res.status(400).json({ error: 'Title is required' });
+  const session = await Session.findOne({ id: req.params.sessionId });
+  if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  const data = {
-    id: uuidv4(),
-    title,
-    description: description || '',
-    type: type || 'other',
-  };
-
+  const data = { id: uuidv4(), sessionId: req.params.sessionId, title, description: description || '', type: type || 'other' };
   if (req.file) {
     data.fileName = req.file.originalname;
     data.fileData = req.file.buffer;
@@ -483,17 +514,17 @@ app.post('/api/resources', adminAuth, upload.single('file'), async (req, res) =>
   res.json(safe);
 });
 
+app.delete('/api/sessions/:sessionId/resources/:id', adminAuth, async (req, res) => {
+  await Resource.deleteOne({ id: req.params.id, sessionId: req.params.sessionId });
+  res.json({ success: true });
+});
+
 app.get('/api/resources/:id/download', async (req, res) => {
   const resource = await Resource.findOne({ id: req.params.id });
   if (!resource || !resource.fileData) return res.status(404).json({ error: 'File not found' });
   res.setHeader('Content-Type', resource.fileMimeType || 'application/octet-stream');
   res.setHeader('Content-Disposition', `attachment; filename="${resource.fileName}"`);
   res.send(resource.fileData);
-});
-
-app.delete('/api/resources/:id', adminAuth, async (req, res) => {
-  await Resource.deleteOne({ id: req.params.id });
-  res.json({ success: true });
 });
 
 // ===================== STATIC ROUTES =====================

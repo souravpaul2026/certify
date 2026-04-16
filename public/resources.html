@@ -6,159 +6,132 @@
   <title>CertifyPro — Resources</title>
   <link rel="stylesheet" href="/style.css" />
   <style>
-    .resources-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
-      margin-top: 24px;
-    }
-    .resource-card {
+    .session-list { display: flex; flex-direction: column; gap: 16px; margin-top: 24px; }
+
+    .session-folder {
       background: #fff;
-      border-radius: 14px;
       border: 1px solid var(--border);
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      transition: box-shadow 0.2s, transform 0.2s;
-    }
-    .resource-card:hover {
-      box-shadow: 0 8px 24px rgba(0,0,0,0.10);
-      transform: translateY(-2px);
-    }
-    .resource-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-    }
-    .resource-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text);
-    }
-    .resource-desc {
-      font-size: 13px;
-      color: var(--muted);
-      flex: 1;
-    }
-    .resource-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-top: 4px;
-    }
-    .filter-bar {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 20px;
-    }
-    .filter-btn {
-      padding: 6px 16px;
-      border-radius: 20px;
-      border: 1.5px solid var(--border);
-      background: #fff;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      color: var(--muted);
-      transition: all 0.15s;
-    }
-    .filter-btn.active {
-      background: var(--primary);
-      border-color: var(--primary);
-      color: #fff;
-    }
-    .admin-add-bar {
-      display: none;
-      margin-top: 16px;
-      padding: 12px 16px;
-      background: #F5F3FF;
-      border-radius: 10px;
-      border: 1.5px dashed #C4B5FD;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .admin-add-bar.visible { display: flex; }
-    .resource-thumb {
-      width: 100%;
-      height: 160px;
-      border-radius: 10px;
-      background: #0f0f0f;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      position: relative;
+      border-radius: 14px;
       overflow: hidden;
+    }
+    .session-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .session-header:hover { background: #FAFAFA; }
+    .session-folder-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      background: #EDE9FE;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .session-info { flex: 1; min-width: 0; }
+    .session-name { font-size: 16px; font-weight: 600; color: var(--text); }
+    .session-meta { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .session-chevron {
+      font-size: 18px; color: var(--muted);
+      transition: transform 0.2s;
+    }
+    .session-folder.open .session-chevron { transform: rotate(90deg); }
+    .session-admin-actions { display: flex; gap: 6px; }
+
+    .session-body {
+      display: none;
+      border-top: 1px solid var(--border);
+      padding: 20px 24px;
+      background: #FAFAFA;
+    }
+    .session-folder.open .session-body { display: block; }
+
+    .resource-section { margin-bottom: 20px; }
+    .resource-section:last-child { margin-bottom: 0; }
+    .resource-section-title {
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted); margin-bottom: 12px;
+    }
+    .resource-items { display: flex; flex-direction: column; gap: 8px; }
+
+    .resource-row {
+      display: flex; align-items: center; gap: 12px;
+      background: #fff; border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 16px;
+    }
+    .resource-row-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .resource-row-info { flex: 1; min-width: 0; }
+    .resource-row-title { font-size: 14px; font-weight: 500; color: var(--text); }
+    .resource-row-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .resource-row-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+
+    .resource-thumb {
+      width: 100%; height: 180px; border-radius: 10px;
+      background: #0f0f0f; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; margin-bottom: 10px;
+      position: relative; overflow: hidden;
     }
     .resource-thumb:hover .play-btn { transform: scale(1.1); }
     .play-btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
+      width: 56px; height: 56px; border-radius: 50%;
       background: rgba(255,255,255,0.92);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      transition: transform 0.15s;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; transition: transform 0.15s;
       box-shadow: 0 4px 16px rgba(0,0,0,0.3);
     }
+    .recordings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .recording-card {
+      background: #fff; border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+    }
+    .recording-card-body { padding: 10px 12px; }
+    .recording-card-title { font-size: 13px; font-weight: 500; }
+    .recording-card-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .recording-card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 12px 10px;
+    }
+
+    /* Player modal */
     .player-modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.85);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85); z-index: 1000;
+      align-items: center; justify-content: center; padding: 20px;
     }
     .player-modal-overlay.open { display: flex; }
     .player-modal {
-      background: #000;
-      border-radius: 14px;
-      width: 100%;
-      max-width: 900px;
-      overflow: hidden;
-      position: relative;
+      background: #000; border-radius: 14px;
+      width: 100%; max-width: 900px; overflow: hidden;
     }
     .player-modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
-      background: #1a1a1a;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: #1a1a1a;
     }
     .player-modal-title { color: #fff; font-size: 15px; font-weight: 600; }
-    .player-close {
-      background: none;
-      border: none;
-      color: #aaa;
-      font-size: 24px;
-      cursor: pointer;
-      line-height: 1;
-    }
+    .player-close { background: none; border: none; color: #aaa; font-size: 24px; cursor: pointer; line-height: 1; }
     .player-close:hover { color: #fff; }
-    .player-iframe-wrap {
-      position: relative;
-      width: 100%;
-      padding-bottom: 56.25%;
+    .player-iframe-wrap { position: relative; width: 100%; padding-bottom: 56.25%; }
+    .player-iframe-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+
+    .admin-add-bar {
+      display: none; margin-top: 16px; padding: 12px 16px;
+      background: #F5F3FF; border-radius: 10px;
+      border: 1.5px dashed #C4B5FD;
+      align-items: center; justify-content: space-between; gap: 12px;
     }
-    .player-iframe-wrap iframe {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
+    .admin-add-bar.visible { display: flex; }
+    .empty-session { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
   </style>
 </head>
 <body>
@@ -167,10 +140,7 @@
   <nav class="topbar">
     <div class="topbar-brand">
       <div class="logo-icon">🎯</div>
-      <div>
-        CertifyPro
-        <span class="brand-sub">GTM Enablement</span>
-      </div>
+      <div>CertifyPro<span class="brand-sub">GTM Enablement</span></div>
     </div>
     <div class="topbar-nav">
       <a href="/">Admin</a>
@@ -185,28 +155,18 @@
         <h1>Resources</h1>
         <p>Session decks, recordings, and learning materials</p>
       </div>
-      <div style="display:flex;gap:10px;align-items:center;">
-        <button class="btn btn-secondary btn-sm" onclick="toggleAdminMode()">Admin</button>
-      </div>
+      <button class="btn btn-secondary btn-sm" onclick="toggleAdminMode()">Admin</button>
     </div>
 
-    <!-- Admin add bar (visible when admin is logged in) -->
     <div class="admin-add-bar" id="adminBar">
-      <span style="font-size:13px;color:#6C2BD9;font-weight:500;">Admin mode active</span>
-      <button class="btn btn-primary btn-sm" onclick="openModal('addResourceModal')">+ Add Resource</button>
+      <span style="font-size:13px;color:#6C2BD9;font-weight:500;">Admin mode — manage sessions and resources</span>
+      <button class="btn btn-primary btn-sm" onclick="openCreateSession()">+ New Session</button>
     </div>
 
-    <div class="filter-bar">
-      <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
-      <button class="filter-btn" onclick="setFilter('deck', this)">Decks</button>
-      <button class="filter-btn" onclick="setFilter('recording', this)">Recordings</button>
-      <button class="filter-btn" onclick="setFilter('other', this)">Other</button>
-    </div>
-
-    <div id="resourcesGrid" class="resources-grid">
-      <div class="empty-state" style="grid-column:1/-1">
+    <div id="sessionList" class="session-list">
+      <div class="empty-state">
         <div class="empty-icon">📂</div>
-        <h3>Loading resources...</h3>
+        <h3>Loading...</h3>
       </div>
     </div>
   </div>
@@ -214,6 +174,43 @@
 
 <!-- TOAST -->
 <div class="toast-container" id="toastContainer"></div>
+
+<!-- Video Player Modal -->
+<div class="player-modal-overlay" id="playerModal" onclick="closePlayer(event)">
+  <div class="player-modal">
+    <div class="player-modal-header">
+      <span class="player-modal-title" id="playerTitle"></span>
+      <button class="player-close" onclick="closePlayerModal()">×</button>
+    </div>
+    <div class="player-iframe-wrap">
+      <iframe id="playerIframe" src="" allowfullscreen allow="autoplay"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- Create/Edit Session Modal -->
+<div class="modal-overlay" id="sessionModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 id="sessionModalTitle">New Session</h3>
+      <button class="close-btn" onclick="closeModal('sessionModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Session Title *</label>
+        <input type="text" id="sessionTitle" class="form-control" placeholder="e.g. Session 1 — ICP Definition" />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="sessionDesc" class="form-control" placeholder="Brief description" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('sessionModal')">Cancel</button>
+      <button class="btn btn-primary" id="sessionSaveBtn" onclick="saveSession()">Create Session</button>
+    </div>
+  </div>
+</div>
 
 <!-- Add Resource Modal -->
 <div class="modal-overlay" id="addResourceModal">
@@ -256,19 +253,6 @@
   </div>
 </div>
 
-<!-- Video Player Modal -->
-<div class="player-modal-overlay" id="playerModal" onclick="closePlayer(event)">
-  <div class="player-modal">
-    <div class="player-modal-header">
-      <span class="player-modal-title" id="playerTitle"></span>
-      <button class="player-close" onclick="closePlayerModal()">×</button>
-    </div>
-    <div class="player-iframe-wrap">
-      <iframe id="playerIframe" src="" allowfullscreen allow="autoplay"></iframe>
-    </div>
-  </div>
-</div>
-
 <!-- Admin Auth Modal -->
 <div class="modal-overlay" id="adminAuthModal">
   <div class="modal" style="max-width:360px;">
@@ -291,94 +275,191 @@
 
 <script>
 let adminPwd = localStorage.getItem('adminPwd') || '';
-let allResources = [];
-let currentFilter = 'all';
 let isAdmin = false;
+let sessions = [];
+let currentSessionId = null;
+let editingSessionId = null;
 
-async function loadResources() {
-  const res = await fetch('/api/resources');
-  allResources = await res.json();
-  renderResources();
+// ===== LOAD =====
+async function loadSessions() {
+  const res = await fetch('/api/sessions');
+  sessions = await res.json();
+  renderSessions();
 }
 
-function setFilter(type, btn) {
-  currentFilter = type;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderResources();
-}
-
-function renderResources() {
-  const grid = document.getElementById('resourcesGrid');
-  const filtered = currentFilter === 'all' ? allResources : allResources.filter(r => r.type === currentFilter);
-
-  if (filtered.length === 0) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📂</div><h3>No resources yet</h3><p>Resources will appear here once added</p></div>`;
+function renderSessions() {
+  const list = document.getElementById('sessionList');
+  if (sessions.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div><h3>No sessions yet</h3><p>${isAdmin ? 'Click "+ New Session" to create one' : 'Resources will appear here once added'}</p></div>`;
     return;
   }
-
-  const iconMap = { deck: { icon: '📊', bg: '#EDE9FE' }, recording: { icon: '🎬', bg: '#DBEAFE' }, other: { icon: '📄', bg: '#F3F4F6' } };
-
-  grid.innerHTML = filtered.map(r => {
-    const { icon, bg } = iconMap[r.type] || iconMap.other;
-    const link = r.url || `/api/resources/${r.id}/download`;
-    const isExternal = !!r.url;
-    const size = r.fileSize ? `${(r.fileSize / 1024 / 1024).toFixed(1)} MB` : '';
-    const embedUrl = getEmbedUrl(r.url);
-    const isEmbeddable = !!embedUrl && r.type === 'recording';
-
-    return `
-      <div class="resource-card">
-        ${isEmbeddable ? `
-          <div class="resource-thumb" onclick="openPlayer('${escHtml(r.title)}', '${embedUrl}')">
-            <div class="play-btn">▶</div>
-          </div>
-        ` : `<div class="resource-icon" style="background:${bg}">${icon}</div>`}
-        <div class="resource-title">${escHtml(r.title)}</div>
-        ${r.description ? `<div class="resource-desc">${escHtml(r.description)}</div>` : ''}
-        <div class="resource-footer">
-          <span class="badge badge-gray">${r.type}</span>
-          ${size ? `<span style="font-size:12px;color:var(--muted)">${size}</span>` : ''}
-          ${isEmbeddable
-            ? `<button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openPlayer('${escHtml(r.title)}', '${embedUrl}')">Watch</button>`
-            : `<a href="${link}" target="${isExternal ? '_blank' : '_self'}" class="btn btn-primary btn-sm" style="margin-left:auto;">${isExternal ? 'Open' : 'Download'}</a>`
-          }
-          ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteResource('${r.id}')">Delete</button>` : ''}
+  list.innerHTML = sessions.map((s, i) => `
+    <div class="session-folder" id="folder-${s.id}">
+      <div class="session-header" onclick="toggleFolder('${s.id}')">
+        <div class="session-folder-icon">📁</div>
+        <div class="session-info">
+          <div class="session-name">${escHtml(s.title)}</div>
+          ${s.description ? `<div class="session-meta">${escHtml(s.description)}</div>` : ''}
         </div>
+        ${isAdmin ? `
+          <div class="session-admin-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-secondary btn-sm" onclick="openEditSession('${s.id}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteSession('${s.id}')">Delete</button>
+            <button class="btn btn-primary btn-sm" onclick="openAddResource('${s.id}')">+ Add</button>
+          </div>
+        ` : ''}
+        <span class="session-chevron">›</span>
       </div>
-    `;
-  }).join('');
+      <div class="session-body" id="body-${s.id}">
+        <div style="color:var(--muted);font-size:13px;">Loading...</div>
+      </div>
+    </div>
+  `).join('');
 }
 
-function toggleAdminMode() {
-  if (isAdmin) {
-    isAdmin = false;
-    document.getElementById('adminBar').classList.remove('visible');
-    renderResources();
+async function toggleFolder(sessionId) {
+  const folder = document.getElementById(`folder-${sessionId}`);
+  const isOpen = folder.classList.contains('open');
+  if (isOpen) {
+    folder.classList.remove('open');
     return;
   }
-  if (adminPwd) {
-    activateAdmin();
-  } else {
-    document.getElementById('adminPwdInput').value = '';
-    openModal('adminAuthModal');
+  folder.classList.add('open');
+  await loadSessionResources(sessionId);
+}
+
+async function loadSessionResources(sessionId) {
+  const body = document.getElementById(`body-${sessionId}`);
+  const res = await fetch(`/api/sessions/${sessionId}/resources`);
+  const resources = await res.json();
+  renderSessionResources(sessionId, resources);
+}
+
+function renderSessionResources(sessionId, resources) {
+  const body = document.getElementById(`body-${sessionId}`);
+  const decks = resources.filter(r => r.type === 'deck' || r.type === 'other');
+  const recordings = resources.filter(r => r.type === 'recording');
+
+  if (resources.length === 0) {
+    body.innerHTML = `<div class="empty-session">No resources yet${isAdmin ? ' — click "+ Add" to add decks or recordings' : ''}</div>`;
+    return;
   }
+
+  let html = '';
+
+  if (decks.length > 0) {
+    html += `<div class="resource-section">
+      <div class="resource-section-title">Decks & Materials</div>
+      <div class="resource-items">
+        ${decks.map(r => {
+          const link = r.url || `/api/resources/${r.id}/download`;
+          return `
+            <div class="resource-row">
+              <div class="resource-row-icon" style="background:#EDE9FE;">📊</div>
+              <div class="resource-row-info">
+                <div class="resource-row-title">${escHtml(r.title)}</div>
+                ${r.description ? `<div class="resource-row-desc">${escHtml(r.description)}</div>` : ''}
+              </div>
+              <div class="resource-row-actions">
+                <a href="${link}" target="${r.url ? '_blank' : '_self'}" class="btn btn-primary btn-sm">
+                  ${r.url ? 'Open' : 'Download'}
+                </a>
+                ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteResource('${sessionId}','${r.id}')">×</button>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  if (recordings.length > 0) {
+    html += `<div class="resource-section">
+      <div class="resource-section-title">Recordings</div>
+      <div class="recordings-grid">
+        ${recordings.map(r => {
+          const embedUrl = getEmbedUrl(r.url);
+          return `
+            <div class="recording-card">
+              <div class="resource-thumb" onclick="${embedUrl ? `openPlayer('${escHtml(r.title)}','${embedUrl}')` : `window.open('${r.url || `/api/resources/${r.id}/download`}','_blank')`}">
+                <div class="play-btn">▶</div>
+              </div>
+              <div class="recording-card-body">
+                <div class="recording-card-title">${escHtml(r.title)}</div>
+                ${r.description ? `<div class="recording-card-desc">${escHtml(r.description)}</div>` : ''}
+              </div>
+              <div class="recording-card-footer">
+                <span class="badge badge-gray">Recording</span>
+                ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteResource('${sessionId}','${r.id}')">Delete</button>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  body.innerHTML = html;
 }
 
-async function doAdminLogin() {
-  const pwd = document.getElementById('adminPwdInput').value;
-  const res = await fetch('/api/resources', { headers: { 'x-admin-password': pwd } });
-  if (!res.ok) { showToast('Wrong password', 'error'); return; }
-  adminPwd = pwd;
-  localStorage.setItem('adminPwd', pwd);
-  closeModal('adminAuthModal');
-  activateAdmin();
+// ===== SESSIONS CRUD =====
+function openCreateSession() {
+  editingSessionId = null;
+  document.getElementById('sessionModalTitle').textContent = 'New Session';
+  document.getElementById('sessionSaveBtn').textContent = 'Create Session';
+  document.getElementById('sessionTitle').value = '';
+  document.getElementById('sessionDesc').value = '';
+  openModal('sessionModal');
 }
 
-function activateAdmin() {
-  isAdmin = true;
-  document.getElementById('adminBar').classList.add('visible');
-  renderResources();
+function openEditSession(id) {
+  const s = sessions.find(s => s.id === id);
+  if (!s) return;
+  editingSessionId = id;
+  document.getElementById('sessionModalTitle').textContent = 'Edit Session';
+  document.getElementById('sessionSaveBtn').textContent = 'Save Changes';
+  document.getElementById('sessionTitle').value = s.title;
+  document.getElementById('sessionDesc').value = s.description || '';
+  openModal('sessionModal');
+}
+
+async function saveSession() {
+  const title = document.getElementById('sessionTitle').value.trim();
+  if (!title) { showToast('Title is required', 'error'); return; }
+  const body = { title, description: document.getElementById('sessionDesc').value.trim() };
+
+  if (editingSessionId) {
+    const res = await fetch(`/api/sessions/${editingSessionId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPwd }, body: JSON.stringify(body) });
+    const updated = await res.json();
+    sessions = sessions.map(s => s.id === editingSessionId ? updated : s);
+  } else {
+    const res = await fetch('/api/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPwd }, body: JSON.stringify(body) });
+    const created = await res.json();
+    sessions.push(created);
+  }
+
+  renderSessions();
+  closeModal('sessionModal');
+  showToast(editingSessionId ? 'Session updated!' : 'Session created!', 'success');
+}
+
+async function deleteSession(id) {
+  if (!confirm('Delete this session and all its resources?')) return;
+  await fetch(`/api/sessions/${id}`, { method: 'DELETE', headers: { 'x-admin-password': adminPwd } });
+  sessions = sessions.filter(s => s.id !== id);
+  renderSessions();
+  showToast('Session deleted');
+}
+
+// ===== RESOURCES =====
+function openAddResource(sessionId) {
+  currentSessionId = sessionId;
+  document.getElementById('resTitle').value = '';
+  document.getElementById('resDesc').value = '';
+  document.getElementById('resFile').value = '';
+  document.getElementById('resUrl').value = '';
+  document.getElementById('resType').value = 'deck';
+  openModal('addResourceModal');
 }
 
 async function saveResource() {
@@ -398,65 +479,68 @@ async function saveResource() {
   if (file) formData.append('file', file);
   if (url) formData.append('url', url);
 
-  const res = await fetch('/api/resources', {
+  const res = await fetch(`/api/sessions/${currentSessionId}/resources`, {
     method: 'POST',
     headers: { 'x-admin-password': adminPwd },
     body: formData,
   });
 
   if (!res.ok) { showToast('Failed to add resource', 'error'); return; }
-  const resource = await res.json();
-  allResources.unshift(resource);
-  renderResources();
   closeModal('addResourceModal');
-  document.getElementById('resTitle').value = '';
-  document.getElementById('resDesc').value = '';
-  document.getElementById('resFile').value = '';
-  document.getElementById('resUrl').value = '';
+  await loadSessionResources(currentSessionId);
   showToast('Resource added!', 'success');
 }
 
-async function deleteResource(id) {
+async function deleteResource(sessionId, resourceId) {
   if (!confirm('Delete this resource?')) return;
-  await fetch(`/api/resources/${id}`, { method: 'DELETE', headers: { 'x-admin-password': adminPwd } });
-  allResources = allResources.filter(r => r.id !== id);
-  renderResources();
-  showToast('Resource deleted');
+  await fetch(`/api/sessions/${sessionId}/resources/${resourceId}`, { method: 'DELETE', headers: { 'x-admin-password': adminPwd } });
+  await loadSessionResources(sessionId);
+  showToast('Deleted');
 }
 
-// ===== UTILS =====
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-
-document.querySelectorAll('.modal-overlay').forEach(m => {
-  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
-});
-
-function showToast(msg, type = 'info') {
-  const container = document.getElementById('toastContainer');
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-  toast.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), 3500);
+// ===== ADMIN =====
+function toggleAdminMode() {
+  if (isAdmin) {
+    isAdmin = false;
+    document.getElementById('adminBar').classList.remove('visible');
+    renderSessions();
+    return;
+  }
+  if (adminPwd) {
+    activateAdmin();
+  } else {
+    document.getElementById('adminPwdInput').value = '';
+    openModal('adminAuthModal');
+  }
 }
 
-function escHtml(str) {
-  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+async function doAdminLogin() {
+  const pwd = document.getElementById('adminPwdInput').value;
+  const res = await fetch('/api/sessions', { headers: { 'x-admin-password': pwd } });
+  adminPwd = pwd;
+  localStorage.setItem('adminPwd', pwd);
+  closeModal('adminAuthModal');
+  activateAdmin();
 }
 
+function activateAdmin() {
+  isAdmin = true;
+  document.getElementById('adminBar').classList.add('visible');
+  renderSessions();
+  // re-render open folders with admin controls
+  document.querySelectorAll('.session-folder.open').forEach(f => {
+    const id = f.id.replace('folder-', '');
+    loadSessionResources(id);
+  });
+}
+
+// ===== PLAYER =====
 function getEmbedUrl(url) {
   if (!url) return null;
-  // Google Drive: https://drive.google.com/file/d/FILE_ID/view or /open?id=FILE_ID
-  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/\?]+)/) ||
-                     url.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/\?]+)/) || url.match(/drive\.google\.com\/open\?id=([^&]+)/);
   if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
-
-  // YouTube: watch?v=ID or youtu.be/ID
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\?]+)/);
   if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
-
   return null;
 }
 
@@ -475,7 +559,25 @@ function closePlayer(e) {
   if (e.target === document.getElementById('playerModal')) closePlayerModal();
 }
 
-loadResources();
+// ===== UTILS =====
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+function showToast(msg, type = 'info') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadSessions();
 </script>
 </body>
 </html>
