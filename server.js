@@ -10,7 +10,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || 'admin123').trim().replace(/^["'`]+|["'`]+$/g, '');
 
 // --- MongoDB Connection ---
 const rawUri = process.env.MONGODB_URI || '';
@@ -167,7 +167,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 function adminAuth(req, res, next) {
-  const pwd = req.headers['x-admin-password'] || req.query.pwd;
+  const pwd = (req.headers['x-admin-password'] || req.query.pwd || '').trim();
   if (pwd !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
   next();
 }

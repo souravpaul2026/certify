@@ -363,7 +363,7 @@ let editingQuestionId = null;
 
 // ===== AUTH =====
 function doLogin() {
-  const pwd = document.getElementById('authInput').value;
+  const pwd = document.getElementById('authInput').value.trim();
   adminPwd = pwd;
   verifyAndLoad();
 }
