@@ -16,7 +16,12 @@ const ADMIN_PASSWORD = (process.env.ADMIN_PASSWORD || 'admin123').trim().replace
 const rawUri = process.env.MONGODB_URI || '';
 const mongoUri = rawUri.trim().replace(/^["'`]+|["'`]+$/g, '') || 'mongodb://localhost:27017/certify';
 console.log('Connecting to MongoDB, URI starts with:', mongoUri.substring(0, 20));
-mongoose.connect(mongoUri)
+mongoose.set('bufferTimeoutMS', 8000);
+mongoose.connect(mongoUri, {
+  serverSelectionTimeoutMS: 8000,
+  connectTimeoutMS: 8000,
+  socketTimeoutMS: 10000,
+})
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => console.error('❌ MongoDB error:', err.message));
 
