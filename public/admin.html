@@ -112,7 +112,10 @@
         <div class="card">
           <div class="card-header">
             <h2>Questions (<span id="qCount">0</span>)</h2>
-            <button class="btn btn-primary btn-sm" onclick="openAddQuestion()">+ Add Question</button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary btn-sm" onclick="openImportQuestions()">⬆ Import</button>
+              <button class="btn btn-primary btn-sm" onclick="openAddQuestion()">+ Add Question</button>
+            </div>
           </div>
           <div class="card-body">
             <div id="questionList" class="question-list">
@@ -290,6 +293,35 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('addQuestionModal')">Cancel</button>
       <button class="btn btn-primary" id="saveQuestionBtn" onclick="saveQuestion()">Add Question</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Questions Modal -->
+<div class="modal-overlay" id="importQuestionsModal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <h3>Import Questions</h3>
+      <button class="close-btn" onclick="closeModal('importQuestionsModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>File (.csv or .docx)</label>
+        <input type="file" id="importFile" class="form-control" accept=".csv,.docx" />
+      </div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-top:4px;">
+        <strong>CSV:</strong> columns <code>Type, Question, Option A, Option B, ..., Correct Option, Points</code>.
+        <code>Type</code> is <code>mcq</code> or <code>subjective</code>; <code>Correct Option</code> is a letter (A, B, ...) or number.
+        <a href="/question-import-template.csv" download style="color:var(--primary);">Download template ⬇</a>
+        <br/><br/>
+        <strong>DOCX:</strong> number each question (<code>1. ...</code>), letter each option (<code>A) ...</code>), and add
+        <code>Answer: A</code> below it. For subjective questions, skip the options and add <code>Points: 15</code> instead.
+      </p>
+      <div id="importResult"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('importQuestionsModal')">Cancel</button>
+      <button class="btn btn-primary" id="importSubmitBtn" onclick="submitQuestionImport()">Import</button>
     </div>
   </div>
 </div>
@@ -662,6 +694,56 @@ async function deleteQuestion(qid) {
   currentExam = await examRes.json();
   renderQuestions();
   showToast('Question deleted');
+}
+
+// ===== QUESTION IMPORT =====
+function openImportQuestions() {
+  document.getElementById('importFile').value = '';
+  document.getElementById('importResult').innerHTML = '';
+  openModal('importQuestionsModal');
+}
+
+async function submitQuestionImport() {
+  const file = document.getElementById('importFile').files[0];
+  if (!file) { showToast('Choose a file first', 'error'); return; }
+
+  const btn = document.getElementById('importSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Importing...';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch(`/api/exams/${currentExam.id}/questions/import`, {
+      method: 'POST',
+      headers: { 'x-admin-password': adminPwd },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      document.getElementById('importResult').innerHTML = `<p style="color:var(--danger);font-size:13px;margin-top:8px;">${escHtml(data.error || 'Import failed')}</p>`;
+      showToast(data.error || 'Import failed', 'error');
+      return;
+    }
+
+    const examRes = await apiFetch(`/api/exams/${currentExam.id}`);
+    currentExam = await examRes.json();
+    renderQuestions();
+
+    let msg = `<p style="color:var(--success);font-size:13px;margin-top:8px;">✅ Imported ${data.imported} question(s).</p>`;
+    if (data.skipped && data.skipped.length) {
+      msg += `<p style="font-size:12px;color:var(--muted);margin-top:4px;">Skipped ${data.skipped.length}: ${data.skipped.map(s => `row ${s.row} (${escHtml(s.reason)})`).join(', ')}</p>`;
+    }
+    document.getElementById('importResult').innerHTML = msg;
+    showToast(`Imported ${data.imported} question(s)!`, 'success');
+    if (!data.skipped || !data.skipped.length) closeModal('importQuestionsModal');
+  } catch (e) {
+    showToast('Import failed', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Import';
+  }
 }
 
 // ===== LINKS =====

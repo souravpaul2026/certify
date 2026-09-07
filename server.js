@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+const mammoth = require('mammoth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -166,6 +167,117 @@ async function updateSheetRow(submission, exam) {
   } catch (e) { console.warn('Sheets update error:', e.message); }
 }
 
+// --- Question import (CSV / DOCX) ---
+// CSV columns: Type, Question, Option A, Option B, ... (any number of "Option *" columns), Correct Option, Points
+// Correct Option accepts a letter (A/B/C...) or a 1-based number.
+function parseCsvLine(line) {
+  const cells = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') { inQuotes = false; }
+      else cur += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ',') {
+      cells.push(cur); cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  cells.push(cur);
+  return cells.map(c => c.trim());
+}
+
+function parseCsvQuestions(text) {
+  const lines = text.split(/\r\n|\r|\n/).filter(l => l.trim().length > 0);
+  if (lines.length < 2) return { questions: [], skipped: [] };
+  const header = parseCsvLine(lines[0]).map(h => h.toLowerCase());
+  const typeIdx = header.indexOf('type');
+  const textIdx = header.findIndex(h => h === 'question' || h === 'text');
+  const correctIdx = header.findIndex(h => h.startsWith('correct'));
+  const pointsIdx = header.findIndex(h => h.startsWith('point'));
+  const optionIdxs = header.reduce((acc, h, i) => { if (h.startsWith('option')) acc.push(i); return acc; }, []);
+
+  const questions = [];
+  const skipped = [];
+  for (let r = 1; r < lines.length; r++) {
+    const cells = parseCsvLine(lines[r]);
+    const text = textIdx >= 0 ? (cells[textIdx] || '').trim() : '';
+    if (!text) { skipped.push({ row: r + 1, reason: 'Missing question text' }); continue; }
+    let type = (typeIdx >= 0 ? (cells[typeIdx] || '').trim().toLowerCase() : '') || 'mcq';
+    if (type !== 'mcq' && type !== 'subjective') type = 'mcq';
+
+    if (type === 'mcq') {
+      const options = optionIdxs.map(i => (cells[i] || '').trim()).filter(Boolean);
+      if (options.length < 2) { skipped.push({ row: r + 1, reason: 'MCQ needs at least 2 options' }); continue; }
+      const rawCorrect = correctIdx >= 0 ? (cells[correctIdx] || '').trim() : '';
+      let correctOption = /^[0-9]+$/.test(rawCorrect) ? parseInt(rawCorrect, 10) - 1 : rawCorrect.toUpperCase().charCodeAt(0) - 65;
+      if (!(correctOption >= 0 && correctOption < options.length)) { skipped.push({ row: r + 1, reason: 'Correct option not recognized' }); continue; }
+      questions.push({ type: 'mcq', text, options, correctOption, maxPoints: 10 });
+    } else {
+      const points = pointsIdx >= 0 ? parseInt(cells[pointsIdx], 10) : NaN;
+      questions.push({ type: 'subjective', text, maxPoints: Number.isFinite(points) && points > 0 ? points : 10 });
+    }
+  }
+  return { questions, skipped };
+}
+
+// Plain-text format (also used for text extracted from .docx):
+// 1. Question text
+// A) Option one
+// B) Option two
+// Answer: A
+//
+// 2. Subjective question text
+// Type: Subjective
+// Points: 15
+function parseTextQuestions(text) {
+  const lines = text.split(/\r\n|\r|\n/);
+  const blocks = [];
+  let current = null;
+  for (const raw of lines) {
+    const line = raw.trim();
+    const qStart = line.match(/^\d+[.)]\s+(.*)/);
+    if (qStart) {
+      if (current) blocks.push(current);
+      current = { textLines: [qStart[1]], optionLines: [], answer: null, typeOverride: null, points: null };
+    } else if (current && line) {
+      const opt = line.match(/^[A-Za-z][.)]\s+(.*)/);
+      const ans = line.match(/^answer:\s*(.+)/i);
+      const typeM = line.match(/^type:\s*(mcq|subjective)/i);
+      const ptsM = line.match(/^points:\s*(\d+)/i);
+      if (ans) current.answer = ans[1].trim();
+      else if (typeM) current.typeOverride = typeM[1].toLowerCase();
+      else if (ptsM) current.points = parseInt(ptsM[1], 10);
+      else if (opt) current.optionLines.push(opt[1]);
+      else current.textLines.push(line);
+    }
+  }
+  if (current) blocks.push(current);
+
+  const questions = [];
+  const skipped = [];
+  blocks.forEach((b, i) => {
+    const text = b.textLines.join(' ').trim();
+    if (!text) { skipped.push({ row: i + 1, reason: 'Missing question text' }); return; }
+    const type = b.typeOverride || (b.optionLines.length >= 2 ? 'mcq' : 'subjective');
+    if (type === 'mcq') {
+      if (b.optionLines.length < 2) { skipped.push({ row: i + 1, reason: 'MCQ needs at least 2 options' }); return; }
+      const rawCorrect = (b.answer || '').trim();
+      let correctOption = /^[0-9]+$/.test(rawCorrect) ? parseInt(rawCorrect, 10) - 1 : rawCorrect.toUpperCase().charCodeAt(0) - 65;
+      if (!(correctOption >= 0 && correctOption < b.optionLines.length)) { skipped.push({ row: i + 1, reason: 'Correct option not recognized (add "Answer: A")' }); return; }
+      questions.push({ type: 'mcq', text, options: b.optionLines, correctOption, maxPoints: 10 });
+    } else {
+      questions.push({ type: 'subjective', text, maxPoints: b.points && b.points > 0 ? b.points : 10 });
+    }
+  });
+  return { questions, skipped };
+}
+
 // --- Middleware ---
 app.use(cors());
 app.use(express.json());
@@ -217,6 +329,37 @@ app.post('/api/exams/:id/questions', adminAuth, async (req, res) => {
   exam.questions.push(question);
   await exam.save();
   res.json(question);
+});
+
+app.post('/api/exams/:id/questions/import', adminAuth, upload.single('file'), async (req, res) => {
+  const exam = await Exam.findOne({ id: req.params.id });
+  if (!exam) return res.status(404).json({ error: 'Exam not found' });
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const name = (req.file.originalname || '').toLowerCase();
+  let parsed;
+  try {
+    if (name.endsWith('.csv') || req.file.mimetype === 'text/csv') {
+      parsed = parseCsvQuestions(req.file.buffer.toString('utf-8'));
+    } else if (name.endsWith('.docx') || req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      const { value: text } = await mammoth.extractRawText({ buffer: req.file.buffer });
+      parsed = parseTextQuestions(text);
+    } else {
+      return res.status(400).json({ error: 'Unsupported file type. Upload a .csv or .docx file.' });
+    }
+  } catch (e) {
+    return res.status(400).json({ error: 'Could not read file: ' + e.message });
+  }
+
+  if (!parsed.questions.length) {
+    return res.status(400).json({ error: 'No valid questions found in the file', skipped: parsed.skipped });
+  }
+
+  let order = exam.questions.length;
+  const added = parsed.questions.map(q => ({ id: uuidv4(), order: ++order, ...q }));
+  exam.questions.push(...added);
+  await exam.save();
+  res.json({ imported: added.length, skipped: parsed.skipped, questions: added });
 });
 
 app.put('/api/exams/:id/questions/:qid', adminAuth, async (req, res) => {
